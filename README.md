@@ -6,7 +6,7 @@ This repository contains a package for [ConcreteCMS](https://www.concretecms.org
 
 ## Installation Methods
 
-* To support the author, you can install URL Aliases on recent versions of ConcreteCMS through the ConcreteCMS Marketplace - see https://market.concretecms.com/
+* To support the author, you can install URL Aliases on recent versions of ConcreteCMS through the ConcreteCMS Marketplace - see https://market.concretecms.com/products/url-aliases/e1683d19-8b4c-11f0-b970-0affd5227f07
 * For composer-based Concrete instances, simply run
    ```sh
    composer require concrete5-community/url_aliases
