@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<concrete5-cif version="1.0">
+
+    <singlepages>
+        <page name="URL Aliases" description="" pagetype="" path="/dashboard/system/url-aliases" package="url_aliases">
+        </page>
+    </singlepages>
+
+</concrete5-cif>

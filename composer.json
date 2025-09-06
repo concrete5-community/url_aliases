@@ -1,0 +1,50 @@
+{
+    "name": "concrete5-community/url_aliases",
+    "description": "A ConcreteCMS package to create alias URLs of pages, files and external URLs",
+    "type": "concrete5-package",
+    "keywords": [
+        "concretecms",
+        "concrete",
+        "cms",
+        "concrete5",
+        "package",
+        "addon",
+        "file",
+        "page",
+        "url",
+        "alias",
+        "fake"
+    ],
+    "homepage": "https://github.com/concrete5-community/url_aliases",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Michele Locati",
+            "email": "michele@locati.it",
+            "role": "maintainer",
+            "homepage": "https://mlocati.github.io"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/concrete5-community/url_aliases/issues",
+        "source": "https://github.com/concrete5-community/url_aliases"
+    },
+    "require": {
+        "php": "^7.3 || ^8",
+        "concrete5/core": "^8.5.4 || ^9"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/mlocati"
+        },
+        {
+            "type": "other",
+            "url": "https://paypal.me/mlocati"
+        }
+    ]
+}
