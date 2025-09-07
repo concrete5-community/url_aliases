@@ -372,7 +372,7 @@ function ready() {
                     <?= json_encode($token->generate('ua-urlalias-save')) ?>,
                     data
                 );
-                this.addOrRefresh(urlAlias);
+                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
             },
             async deleteUrlAlias(urlAlias, confirmed) {
                 if (!confirmed) {
