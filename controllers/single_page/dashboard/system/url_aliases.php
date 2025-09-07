@@ -12,11 +12,14 @@ use Concrete\Core\Page\Controller\DashboardPageController;
 use Concrete\Core\Page\Page;
 use Concrete\Core\Url\Resolver\Manager\ResolverManagerInterface;
 use Concrete\Core\Validation\CSRF\Token;
+use Concrete\Package\UrlAliases\Entity\Target;
 use Concrete\Package\UrlAliases\Entity\UrlAlias;
+use Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget;
 use Concrete\Package\UrlAliases\Entity\UrlAliasRepository;
 use Concrete\Package\UrlAliases\NormalizePathTrait;
 use Concrete\Package\UrlAliases\TargetResolver;
 use Doctrine\ORM\EntityManagerInterface;
+use Punic;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -64,6 +67,8 @@ EOT
         $this->set('token', $this->app->make(Token::class));
         $this->set('currentLocale', $this->app->make(Localization::class)->getLocale());
         $this->set('rootUrl', rtrim((string) $this->app->make(ResolverManagerInterface::class)->resolve(['/']), '/') . '/');
+        $this->set('acceptLanguageDictionaries', $this->getAcceptLanguageDictionaries());
+        $this->set('currentAcceptLanguageHeader', $this->request->headers->get('Accept-Language', '') ?? '');
         $this->set('urlAliases', $this->serializeAllAliases());
 
         return null;
@@ -110,7 +115,7 @@ EOT
             throw new UserMessageException(t('Please specify the path of the alias Url'));
         }
         if ($urlAlias->isEnabled()) {
-            $this->checkClashes($urlAlias);
+            $this->checkUrlAliasClashes($urlAlias);
         }
         if ($urlAlias->getID() === null) {
             $em->persist($urlAlias);
@@ -118,7 +123,7 @@ EOT
         $em->flush();
 
         return $this->app->make(ResponseFactoryInterface::class)->json(
-            $this->serializeAlias($urlAlias, $this->buildSerializationServices())
+            $this->serializeUrlAlias($urlAlias, $this->buildSerializationServices())
         );
     }
 
@@ -136,7 +141,7 @@ EOT
         }
         $enable = $this->request->request->getBoolean('enable');
         if ($enable) {
-            $this->checkClashes($urlAlias);
+            $this->checkUrlAliasClashes($urlAlias);
         }
         $urlAlias->setEnabled($enable);
         $em->flush();
@@ -162,20 +167,97 @@ EOT
         return $this->app->make(ResponseFactoryInterface::class)->json(true);
     }
 
+    public function saveLocalizedTarget(): JsonResponse
+    {
+        $token = $this->app->make(Token::class);
+        $em = $this->app->make(EntityManagerInterface::class);
+        if (!$token->validate('ua-localizedtarget-save')) {
+            throw new UserMessageException($token->getErrorMessage());
+        }
+        $post = $this->request->request;
+
+        $urlAliasID = $post->getInt('urlAlias');
+        $urlAlias = $urlAliasID ? $em->find(UrlAlias::class, $urlAliasID) : null;
+        if ($urlAlias === null) {
+            throw new UserMessageException(t('Unable to find the requested alias'));
+        }
+        $id = $post->get('id');
+        if ($id === 'new') {
+            $localizedTarget = new LocalizedTarget($urlAlias);
+        } else {
+            $id = (int) $id;
+            $localizedTarget = $id ? $em->find(LocalizedTarget::class, $id) : null;
+            if ($localizedTarget === null || $localizedTarget->getUrlAlias() !== $urlAlias) {
+                throw new UserMessageException(t('Unable to find the requested Target by browser language'));
+            }
+        }
+        [$targetType, $targetValue] = $this->normalizeTarget($post->get('targetType'), $post->get('targetValue'));
+        $localizedTarget
+            ->setLanguage(trim($post->get('language', '')))
+            ->setScript(trim($post->get('script', '')))
+            ->setTerritory(trim($post->get('territory', '')))
+            ->setTargetType($targetType)
+            ->setTargetValue($targetValue)
+        ;
+        if ($localizedTarget->getLanguage() === '') {
+            throw new UserMessageException(t('Please specify the language'));
+        }
+        $this->checkLocalizedTargetClashes($localizedTarget);
+        if ($localizedTarget->getID() === null) {
+            $urlAlias->getLocalizedTargets()->add($localizedTarget);
+            $em->persist($urlAlias);
+        }
+        $em->flush();
+
+        return $this->app->make(ResponseFactoryInterface::class)->json(
+            $this->serializeUrlAlias($urlAlias, $this->buildSerializationServices())
+        );
+    }
+
+    public function deleteLocalizedTarget(): JsonResponse
+    {
+        $token = $this->app->make(Token::class);
+        if (!$token->validate('ua-localizedtarget-delete')) {
+            throw new UserMessageException($token->getErrorMessage());
+        }
+        $em = $this->app->make(EntityManagerInterface::class);
+        $urlAliasID = $this->request->request->getInt('urlAlias');
+        $urlAlias = $urlAliasID ? $em->find(UrlAlias::class, $urlAliasID) : null;
+        if ($urlAlias === null) {
+            throw new UserMessageException(t('Unable to find the requested alias'));
+        }
+        $id = $this->request->request->getInt('id');
+        $localizedTarget = $id ? $em->find(LocalizedTarget::class, $id) : null;
+        if ($localizedTarget === null) {
+            throw new UserMessageException(t('Unable to find the requested Target by browser language'));
+        }
+        $urlAlias->getLocalizedTargets()->removeElement($localizedTarget);
+        $em->remove($localizedTarget);
+        $em->flush();
+
+        return $this->app->make(ResponseFactoryInterface::class)->json(
+            $this->serializeUrlAlias($urlAlias, $this->buildSerializationServices())
+        );
+    }
+
     private function serializeAllAliases(): array
     {
-        $em = $this->app->make(EntityManagerInterface::class);
-        $repo = $em->getRepository(UrlAlias::class);
+        $repo = $this->app->make(UrlAliasRepository::class);
         $services = $this->buildSerializationServices();
+        $qb = $repo->createQueryBuilder('ua');
+        $qb
+            ->leftJoin('ua.localizedTargets', 'lt')
+            ->addSelect('lt')
+        ;
         $result = [];
-        foreach ($repo->findAll() as $urlAlias) {
-            $result[] = $this->serializeAlias($urlAlias, $services);
+        foreach ($qb->getQuery()->getResult() as $urlAlias) {
+            $result[] = $this->serializeUrlAlias($urlAlias, $services);
         }
 
         return $result;
     }
 
-    private function serializeAlias(UrlAlias $urlAlias, array $services): array
+    private function serializeUrlAlias(UrlAlias $urlAlias, array $services): array
     {
         $result = [
             'id' => $urlAlias->getID(),
@@ -191,10 +273,29 @@ EOT
             'firstHit' => ($d = $urlAlias->getFirstHit()) === null ? null : $d->getTimestamp(),
             'lastHit' => ($d = $urlAlias->getLastHit()) === null ? null : $d->getTimestamp(),
             'hitCount' => $urlAlias->getHitCount(),
-            'targetInfo' => $services['targetResolver']->resolveUrlAlias($urlAlias),
+            'targetInfo' => $services['targetResolver']->resolve($urlAlias),
+            'localizedTargets' => array_map(
+                function (UrlAlias\LocalizedTarget $localizedTarget) use ($services): array {
+                    return $this->serializeLocalizedTarget($localizedTarget, $services);
+                },
+                $urlAlias->getLocalizedTargets()->toArray(),
+            ),
         ];
 
         return $result;
+    }
+
+    private function serializeLocalizedTarget(UrlAlias\LocalizedTarget $localizedTarget, array $services): array
+    {
+        return [
+            'id' => $localizedTarget->getID(),
+            'language' => $localizedTarget->getLanguage(),
+            'script' => $localizedTarget->getScript(),
+            'territory' => $localizedTarget->getTerritory(),
+            'targetType' => $localizedTarget->getTargetType(),
+            'targetValue' => $localizedTarget->getTargetValue(),
+            'targetInfo' => $services['targetResolver']->resolve($localizedTarget),
+        ];
     }
 
     private function buildSerializationServices(): array
@@ -207,7 +308,7 @@ EOT
     /**
      * @throws \Concrete\Core\Error\UserMessageException
      */
-    private function checkClashes(UrlAlias $urlAlias): void
+    private function checkUrlAliasClashes(UrlAlias $urlAlias): void
     {
         $repo = $this->app->make(UrlAliasRepository::class);
         for ($cycle = 1; $cycle <= 2; $cycle++) {
@@ -231,6 +332,32 @@ EOT
         }
     }
 
+    /**
+     * @throws \Concrete\Core\Error\UserMessageException
+     */
+    private function checkLocalizedTargetClashes(LocalizedTarget $localizedTarget): void
+    {
+        foreach ($localizedTarget->getUrlAlias()->getLocalizedTargets() as $lt) {
+            if ($localizedTarget === $lt) {
+                continue;
+            }
+            if ($localizedTarget->getLanguage() !== $lt->getLanguage()) {
+                continue;
+            }
+            $scriptClash = $localizedTarget->getScript() === $lt->getScript() || in_array('*', [$localizedTarget->getScript(), $lt->getScript()], true);
+            $territoryClash = $localizedTarget->getTerritory() === $lt->getTerritory() || in_array('*', [$localizedTarget->getTerritory(), $lt->getTerritory()], true);
+            if ($scriptClash && $territoryClash) {
+                throw new UserMessageException(
+                    implode("\n", [
+                        t('This Target by browser language satisfies the same browser language as the other existing Target by browser language with:'),
+                        t('Script: %s', $lt->getScript() === '*' ? tc('Script', 'Any') : ($lt->getScript() === '' ? tc('Script', 'None') : $lt->getScript())),
+                        t('Territory: %s', $lt->getTerritory() === '*' ? tc('Territory', 'Any') : ($lt->getTerritory() === '' ? tc('Territory', 'None') : $lt->getTerritory())),
+                    ])
+                );
+            }
+        }
+    }
+
     private function normalizeQuerystring($raw): string
     {
         return is_string($raw) ? ltrim(trim($raw), '?') : '';
@@ -239,12 +366,12 @@ EOT
     private function normalizeTarget(?string $targetType, $targetValue): array
     {
         switch ($targetType ?? '') {
-            case UrlAlias::TARGETTYPE_PAGE:
-                return [UrlAlias::TARGETTYPE_PAGE, (string) $this->normalizeTargetPage($targetValue)];
-            case UrlAlias::TARGETTYPE_FILE:
-                return [UrlAlias::TARGETTYPE_FILE, (string) $this->normalizeTargetFile($targetValue)];
-            case UrlAlias::TARGETTYPE_EXTERNAL_URL:
-                return [UrlAlias::TARGETTYPE_EXTERNAL_URL, $this->normalizeTargetExternalUrl($targetValue)];
+            case Target::TARGETTYPE_PAGE:
+                return [Target::TARGETTYPE_PAGE, (string) $this->normalizeTargetPage($targetValue)];
+            case Target::TARGETTYPE_FILE:
+                return [Target::TARGETTYPE_FILE, (string) $this->normalizeTargetFile($targetValue)];
+            case Target::TARGETTYPE_EXTERNAL_URL:
+                return [Target::TARGETTYPE_EXTERNAL_URL, $this->normalizeTargetExternalUrl($targetValue)];
             default:
                 throw new UserMessageException(t('Unrecognized target type'));
         }
@@ -287,5 +414,32 @@ EOT
         }
 
         return $externalUrl;
+    }
+
+    private function getAcceptLanguageDictionaries(): array
+    {
+        $result = [
+            'LANGUAGES' => [],
+            'SCRIPTS' => [],
+            'CONTINENTS' => [],
+        ];
+        foreach (Punic\Language::getAll(true, true) as $code => $name) {
+            $result['LANGUAGES'][] = ['code' => $code, 'name' => $name];
+        }
+        foreach (Punic\Script::getAllScripts() as $code => $name) {
+            $result['SCRIPTS'][] = ['code' => $code, 'name' => $name];
+        }
+        foreach (Punic\Territory::getContinentsAndCountries() as $data) {
+            $continent = [
+                'name' => $data['name'],
+                'territories' => [],
+            ];
+            foreach ($data['children'] as $code => $info) {
+                $continent['territories'][] = ['code' => $code, 'name' => $info['name']];
+            }
+            $result['CONTINENTS'][] = $continent;
+        }
+
+        return $result;
     }
 }

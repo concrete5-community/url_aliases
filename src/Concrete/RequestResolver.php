@@ -6,6 +6,9 @@ namespace Concrete\Package\UrlAliases;
 
 use Concrete\Core\Http\ResponseFactoryInterface;
 use Concrete\Core\Validation\CSRF\Token;
+use Concrete\Package\UrlAliases\Entity\Target;
+use Concrete\Package\UrlAliases\Entity\UrlAlias;
+use Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget;
 use Concrete\Package\UrlAliases\Entity\UrlAliasRepository;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
@@ -16,6 +19,10 @@ defined('C5_EXECUTE') or die('Access Denied.');
 
 final class RequestResolver
 {
+    public const TESTFIELD_TOKEN = 'ua-testing_url_aliases_token';
+
+    public const TESTFIELD_OVERRIDEACCEPTLANGUAGE = 'ua-testing_url_aliases_acceptlanguage';
+
     /**
      * @var \Concrete\Package\UrlAliases\Entity\UrlAliasRepository
      */
@@ -49,19 +56,17 @@ final class RequestResolver
      */
     public function resolve(Request $request, bool $hitIt = false): ?Response
     {
-        $isTesting = $this->isTesting($request);
-        if ($isTesting) {
-            try {
-                $response = $this->buildResponse($request, false, $isTesting);
-            } catch (Throwable $x) {
-                $response = $this->buildTestingResponse($x->getMessage(), true);
-            }
-            $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
-
-            return $response;
+        if (!$this->isTesting($request)) {
+            return $this->buildResponse($request, $hitIt, false);
         }
+        try {
+            $response = $this->buildResponse($request, false, true);
+        } catch (Throwable $x) {
+            $response = $this->buildTestingResponse($x->getMessage(), true);
+        }
+        $response->headers->set('X-Frame-Options', 'SAMEORIGIN');
 
-        return $this->buildResponse($request, $hitIt, $isTesting);
+        return $response;
     }
 
     private function buildResponse(Request $request, bool $hitIt, bool $isTesting): ?Response
@@ -84,7 +89,8 @@ final class RequestResolver
 
                 return $this->buildTestingResponse($message, true);
         }
-        $resolved = $this->targetResolver->resolveUrlAlias($urlAlias, $request);
+        $target = $this->findUrlAliasTarget($urlAlias, $request, $isTesting);
+        $resolved = $this->targetResolver->resolve($target, $request);
         if ($resolved->error !== '') {
             if ($isTesting) {
                 return $this->buildTestingResponse($resolved->error, true);
@@ -114,12 +120,12 @@ final class RequestResolver
         if ($request->getMethod() !== 'POST') {
             return false;
         }
-        $token = $request->request->get('ua-testing_url_aliases_token');
+        $token = $request->request->get(self::TESTFIELD_TOKEN);
         if (!$token) {
             return false;
         }
 
-        return $this->token->validate('ua-testing_url_aliases_token', $token);
+        return $this->token->validate(self::TESTFIELD_TOKEN, $token);
     }
 
     private function buildTestingResponse(string $message, bool $error = false): Response
@@ -129,19 +135,7 @@ final class RequestResolver
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset={$charset}">
 <script>
-function closeDialog()
-{
-    window.frameElement.closest('dialog').close();
-}
-
 if (window.parent && window.parent !== window) {
-
-    window.addEventListener('keydown', (e) => {
-        if (e?.key === 'Escape') {
-            closeDialog();
-        }
-    });
-
     const from = window.parent.document.documentElement;
     const to = window.document.documentElement;
     if (from.lang) {
@@ -159,11 +153,104 @@ if (window.parent && window.parent !== window) {
 </head>
 EOT
         ;
-        $html = '<!DOCTYPE html><html>' . $head . '<body style="margin: 0; padding: 1rem"><div class="ccm-ui">';
+        $html = '<!DOCTYPE html><html>' . $head . '<body style="margin: 0; padding: 0"><div class="ccm-ui" style="margin: 0">';
         $html .= '<div class="alert ' . ($error ? 'alert-danger' : 'alert-success') . '" style="white-space: pre-wrap">' . h($message) . '</div>';
-        $html .= '<br /><br/><div class="text-center"><button type="button" class="btn btn-primary" onclick="closeDialog()">' . t('Close') . '</div>';
         $html .= '</div></body></html>';
 
         return $this->responseFactory->create($html, Response::HTTP_OK, ['Content-Type' => 'text/html; charset=' . $charset]);
+    }
+
+    private function findUrlAliasTarget(UrlAlias $urlAlias, Request $request, bool $isTesting): Target
+    {
+        $localizedTargets = $urlAlias->getLocalizedTargets()->toArray();
+        if ($localizedTargets === []) {
+            return $urlAlias;
+        }
+        if ($isTesting && $request->request->has(self::TESTFIELD_OVERRIDEACCEPTLANGUAGE)) {
+            $locales = [(string) $request->request->get(self::TESTFIELD_OVERRIDEACCEPTLANGUAGE)];
+        } else {
+            $locales = $request->getLanguages();
+        }
+        foreach ($locales as $locale) {
+            $localizedTarget = $this->findLocalizedTargetForLocale($localizedTargets, $locale);
+            if ($localizedTarget !== null) {
+                return $localizedTarget;
+            }
+        }
+
+        return $urlAlias;
+    }
+
+    /**
+     * @param \Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget[] $localizedTargets
+     */
+    private function findLocalizedTargetForLocale(array $localizedTargets, string $locale): ?LocalizedTarget
+    {
+        [$language, $script, $territory] = $this->inspectLocale($locale);
+        if ($language === '') {
+            return null;
+        }
+        $localizedTargets = array_filter(
+            $localizedTargets,
+            static function (LocalizedTarget $localizedTarget) use ($language, $script, $territory): bool {
+                if ($localizedTarget->getLanguage() !== $language) {
+                    return false;
+                }
+                if (!in_array($localizedTarget->getScript(), ['*', $script], true)) {
+                    return false;
+                }
+                if (!in_array($localizedTarget->getTerritory(), ['*', $territory], true)) {
+                    return false;
+                }
+
+                return true;
+            }
+        );
+
+        return array_shift($localizedTargets);
+    }
+
+    private function inspectLocale(string $locale): array
+    {
+        $territory = $script = $language = '';
+        $rx = <<<'EOT'
+/^
+# language
+(?<language>[a-zA-Z]{2,3})
+# Next, optionally, the territory or the script
+(?:-(?<seg1>[A-Za-z]{2,4}|\d{3}))?
+# Next, optionally, the territory or the script
+(?:-(?<seg2>[A-Za-z]{2,4}|\d{3}))?
+(?:\W|$)
+/x
+EOT
+        ;
+        $match = null;
+        if (preg_match($rx, str_replace('_', '-', $locale), $match)) {
+            $language = strtolower($match['language']);
+            foreach ([$match['seg1'] ?? '', $match['seg2'] ?? ''] as $seg) {
+                switch (strlen($seg)) {
+                    case 0:
+                        break;
+                    case 2:
+                    case 3:
+                        if ($territory !== '') {
+                            break 2;
+                        }
+                        $territory = strtoupper($seg);
+                        break;
+                    case 4:
+                        if ($script !== '') {
+                            break 2;
+                        }
+                        $script = ucfirst(strtolower($seg));
+                        break;
+                    default:
+                        break 2;
+                }
+            }
+        }
+
+        return [$language, $script, $territory];
     }
 }

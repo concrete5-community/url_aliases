@@ -6,6 +6,8 @@ namespace Concrete\Package\UrlAliases\Entity;
 
 use DateTime;
 use DateTimeInterface;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 
 defined('C5_EXECUTE') or die('Access Denied.');
 
@@ -20,14 +22,8 @@ defined('C5_EXECUTE') or die('Access Denied.');
  *     }
  * )
  */
-class UrlAlias
+class UrlAlias implements Target
 {
-    public const TARGETTYPE_PAGE = 'page';
-
-    public const TARGETTYPE_FILE = 'file';
-
-    public const TARGETTYPE_EXTERNAL_URL = 'external_url';
-
     /**
      * The record ID (null if not persisted).
      *
@@ -85,7 +81,7 @@ class UrlAlias
     protected $enabled;
 
     /**
-     * The target type (see the TARGETTYPE constants).
+     * The target type (see the Target::TARGETTYPE constants).
      *
      * @Doctrine\ORM\Mapping\Column(type="string", length=20, nullable=false, options={"comment":"Target type"})
      */
@@ -134,6 +130,16 @@ class UrlAlias
      */
     protected $hitCount;
 
+    /**
+     * The list of localized targets associated to this alias.
+     *
+     * @Doctrine\ORM\Mapping\OneToMany(targetEntity="Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget", mappedBy="urlAlias", cascade={"all"})
+     * @Doctrine\ORM\Mapping\OrderBy({"language"="ASC","script"="ASC","territory"="ASC"})
+     *
+     * @var \Doctrine\Common\Collections\Collection|\Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget[]
+     */
+    protected $localizedTargets;
+
     public function __construct()
     {
         $this->id = null;
@@ -142,12 +148,13 @@ class UrlAlias
         $this->querystring = '';
         $this->acceptAdditionalQuerystringParams = true;
         $this->enabled = true;
-        $this->targetType = self::TARGETTYPE_PAGE;
+        $this->targetType = Target::TARGETTYPE_PAGE;
         $this->targetValue = '';
         $this->forwardQuerystringParams = false;
         $this->firstHit = null;
         $this->lastHit = null;
         $this->hitCount = 0;
+        $this->localizedTargets = new ArrayCollection();
     }
 
     /**
@@ -257,7 +264,9 @@ class UrlAlias
     }
 
     /**
-     * Get the target type (see the TARGETTYPE constants).
+     * Get the target type (see the Target::TARGETTYPE constants).
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::getTargetType()
      */
     public function getTargetType(): string
     {
@@ -265,7 +274,7 @@ class UrlAlias
     }
 
     /**
-     * Set the target type (see the TARGETTYPE constants).
+     * Set the target type (see the Target::TARGETTYPE constants).
      *
      * @return $this
      */
@@ -278,6 +287,8 @@ class UrlAlias
 
     /**
      * Get the target value.
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::getTargetValue()
      */
     public function getTargetValue(): string
     {
@@ -298,6 +309,8 @@ class UrlAlias
 
     /**
      * Forward querystring parameters?
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::isForwardQuerystringParams()
      */
     public function isForwardQuerystringParams(): bool
     {
@@ -354,5 +367,15 @@ class UrlAlias
         $this->hitCount++;
 
         return $this;
+    }
+
+    /**
+     * Get the list of localized targets associated to this alias.
+     *
+     * @return \Doctrine\Common\Collections\Collection|\Concrete\Package\UrlAliases\Entity\UrlAlias\LocalizedTarget[]
+     */
+    public function getLocalizedTargets(): Collection
+    {
+        return $this->localizedTargets;
     }
 }
