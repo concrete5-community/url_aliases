@@ -20,11 +20,11 @@ defined('C5_EXECUTE') or die('Access Denied.');
 ob_start();
 ?>
 <div class="row">
-    <div class="col-4">
+    <div class="col-sm-4">
         <div class="form-group">
             <label v-bind:for="`${idPrefix}-language`" class="form-label"><?= t('Language') ?></label>
-            <div class="input-group">
-                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-language`" v-bind:value="language" v-on:change="$emit('update-language', $event.target.value)" v-bind:disabled="disabled">
+            <div class="input-group input-group-sm">
+                <select class="form-control" v-bind:id="`${idPrefix}-language`" v-bind:value="language" v-on:change="$emit('update-language', $event.target.value)" v-bind:disabled="disabled">
                     <option v-if="language === ''" value="">** <?= t('Please Select') ?> **</option>
                     <option v-for="l in DICTIONARY.LANGUAGES" v-bind:key="l.code" v-bind:value="l.code">{{ l.name }}</option>
                 </select>
@@ -32,11 +32,11 @@ ob_start();
             </div>
         </div>
     </div>
-    <div class="col-4">
+    <div class="col-sm-4">
         <div class="form-group">
             <label v-bind:for="`${idPrefix}-script`" class="form-label"><?= t('Script') ?></label>
-            <div class="input-group">
-                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-script`" v-bind:value="script" v-on:input="$emit('update-script', $event.target.value)" v-bind:disabled="disabled">
+            <div class="input-group input-group-sm">
+                <select class="form-control" v-bind:id="`${idPrefix}-script`" v-bind:value="script" v-on:input="$emit('update-script', $event.target.value)" v-bind:disabled="disabled">
                     <option v-if="allowAny" value="*">** <?= tc('Script', 'Any') ?> **</option>
                     <option value="">** <?= tc('Script', 'None') ?> **</option>
                     <option v-for="s in DICTIONARY.SCRIPTS" v-bind:key="s.code" v-bind:value="s.code">{{ s.name }}</option>
@@ -45,11 +45,11 @@ ob_start();
             </div>
         </div>
     </div>
-    <div class="col-4">
+    <div class="col-sm-4">
         <div class="form-group">
             <label v-bind:for="`${idPrefix}-territory`" class="form-label"><?= t('Territory') ?></label>
-            <div class="input-group">
-                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-territory`" v-bind:value="territory" v-on:input="$emit('update-territory', $event.target.value)" v-bind:disabled="disabled">
+            <div class="input-group input-group-sm">
+                <select class="form-control" v-bind:id="`${idPrefix}-territory`" v-bind:value="territory" v-on:input="$emit('update-territory', $event.target.value)" v-bind:disabled="disabled">
                     <option v-if="allowAny" value="*">** <?= tc('Territory', 'Any') ?> **</option>
                     <option value="">** <?= tc('Territory', 'None') ?> **</option>
                     <optgroup v-for="c in DICTIONARY.CONTINENTS" v-bind:key="c.name" v-bind:label="c.name">

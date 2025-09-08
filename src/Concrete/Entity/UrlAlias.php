@@ -95,6 +95,8 @@ class UrlAlias implements Target
      * The target type (see the Target::TARGETTYPE constants).
      *
      * @Doctrine\ORM\Mapping\Column(type="string", length=20, nullable=false, options={"comment":"Target type"})
+     *
+     * @var string
      */
     protected $targetType;
 
@@ -102,8 +104,19 @@ class UrlAlias implements Target
      * The target value.
      *
      * @Doctrine\ORM\Mapping\Column(type="text", nullable=false, options={"comment":"Target value"})
+     *
+     * @var string
      */
     protected $targetValue;
+
+    /**
+     * The fragment identifier to be appended to page targets.
+     *
+     * @Doctrine\ORM\Mapping\Column(type="string", length=255, nullable=false, options={"comment":"Fragment identifier to be appended to page targets"})
+     *
+     * @var string
+     */
+    protected $fragmentIdentifier;
 
     /**
      * Forward querystring parameters?
@@ -161,6 +174,7 @@ class UrlAlias implements Target
         $this->enabled = true;
         $this->targetType = Target::TARGETTYPE_PAGE;
         $this->targetValue = '';
+        $this->fragmentIdentifier = '';
         $this->forwardQuerystringParams = false;
         $this->firstHit = null;
         $this->lastHit = null;
@@ -315,6 +329,28 @@ class UrlAlias implements Target
     public function setTargetValue(string $value): self
     {
         $this->targetValue = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get the fragment identifier to be appended to page targets.
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::getFragmentIdentifier()
+     */
+    public function getFragmentIdentifier(): string
+    {
+        return $this->fragmentIdentifier;
+    }
+
+    /**
+     * Set the fragment identifier to be appended to page targets.
+     *
+     * @return $this
+     */
+    public function setFragmentIdentifier(string $value): self
+    {
+        $this->fragmentIdentifier = $value;
 
         return $this;
     }

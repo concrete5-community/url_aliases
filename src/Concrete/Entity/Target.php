@@ -28,4 +28,9 @@ interface Target
      * Forward querystring parameters?
      */
     public function isForwardQuerystringParams(): bool;
+
+    /**
+     * Get the fragment identifier to be appended to page targets.
+     */
+    public function getFragmentIdentifier(): string;
 }

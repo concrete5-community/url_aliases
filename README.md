@@ -40,6 +40,7 @@ This is especially useful for creating short, memorable links for marketing camp
 - Complete Control: Break free from the CMS's predetermined URL paths and create addresses that best serve your content and your audience.
 - Hit Count: See how many times an alias is being visited (including the date/time of the last visit)
 - Test Interface: You can easily test if an alias works as expected (also with browser languages that differ from your default one)
+- Support for Fragment Identifiers: When the alias target is a page, you can specify the exact point where the browser should land (for example, `/target#point-in-page`)
 
 ### How It Works
 

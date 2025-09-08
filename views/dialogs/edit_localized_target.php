@@ -29,6 +29,13 @@ ob_start();
         <label class="form-label"><?= t('Target') ?></label>
         <?= $destinationPicker->generate('target', $targetDestinationPickerConfig, $localizedTarget->getTargetType(), $localizedTarget->getTargetValue()) ?>
     </div>
+    <div class="form-group" v-if="askFragmentIdentifier">
+        <label class="form-label" for="ua-localizedtarget-editing-fragmentidentifier">
+            <?= t('Point in the page where users should be redirected to') ?>
+        </label>
+        <input class="form-control" id="ua-localizedtarget-editing-fragmentidentifier" type="text" maxlength="255" spellcheck="false" v-model.trim="fragmentIdentifier" />
+        <div class="small text-muted"><?= t('Specify the value after the %s character', '<code>#</code>') ?></div>
+    </div>
     <div class="dialog-buttons">
         <button class="btn btn-secondary pull-left" v-on:click.prevent="cancel()"><?= t('Cancel') ?></button>
         <?php
@@ -61,18 +68,43 @@ echo $template;
 <script>
 (function() {
 
+let myVueApp = null;
+
+function destinationPickerHook()
+{
+    const select = myVueApp?.$el?.querySelector(':scope [name="target__which"]');
+    if (!select) {
+        return;
+    }
+    switch (select.value) {
+        case 'page':
+            myVueApp.askFragmentIdentifier = true;
+            break;
+        default:
+            myVueApp.askFragmentIdentifier = false;
+            break;
+    }
+}
+
 function ready() {
-    new Vue({
+    myVueApp = new Vue({
         el: '#ua-localizedtarget-editing',
         data() {
             return {
                 language: <?= json_encode($localizedTarget->getLanguage()) ?>,
                 script: <?= json_encode($localizedTarget->getScript()) ?>,
                 territory: <?= json_encode($localizedTarget->getTerritory()) ?>,
+                askFragmentIdentifier: false,
+                fragmentIdentifier: <?= json_encode($localizedTarget->getFragmentIdentifier()) ?>,
             };
         },
         mounted() {
             <?= implode("\n", $scripts) ?>;
+            this.$el.querySelector(':scope [name="target__which"]').addEventListener('change', destinationPickerHook);
+            setTimeout(() => destinationPickerHook(), 100);
+        },
+        beforeDestroy() {
+            this.$el.querySelector(':scope [name="target__which"]')?.removeEventListener('change', destinationPickerHook);
         },
         methods: {
             cancel() {
@@ -106,6 +138,7 @@ function ready() {
                     script: this.script,
                     territory: this.territory,
                     targetType: this.$el.querySelector(':scope [name="target__which"]').value,
+                    fragmentIdentifier: this.fragmentIdentifier,
                 };
                 data.targetValue = this.$el.querySelector(`:scope [name="target_${data.targetType}"]`).value;
                 const ev = new CustomEvent('ccm.url_aliases.saveLocalizedTarget', {

@@ -89,6 +89,15 @@ class LocalizedTarget implements Target
      */
     protected $targetValue;
 
+    /**
+     * The fragment identifier to be appended to page targets.
+     *
+     * @Doctrine\ORM\Mapping\Column(type="string", length=255, nullable=false, options={"comment":"Fragment identifier to be appended to page targets"})
+     *
+     * @var string
+     */
+    protected $fragmentIdentifier;
+
     public function __construct(UrlAlias $urlAlias)
     {
         $this->id = null;
@@ -98,6 +107,7 @@ class LocalizedTarget implements Target
         $this->territory = '*';
         $this->targetType = Target::TARGETTYPE_PAGE;
         $this->targetValue = '';
+        $this->fragmentIdentifier = '';
     }
 
     /**
@@ -228,6 +238,28 @@ class LocalizedTarget implements Target
     public function setTargetValue(string $value): self
     {
         $this->targetValue = $value;
+
+        return $this;
+    }
+
+    /**
+     * Get the fragment identifier to be appended to page targets.
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::getFragmentIdentifier()
+     */
+    public function getFragmentIdentifier(): string
+    {
+        return $this->fragmentIdentifier;
+    }
+
+    /**
+     * Set the fragment to be appended to page targets.
+     *
+     * @return $this
+     */
+    public function setFragmentIdentifier(string $value): self
+    {
+        $this->fragmentIdentifier = $value;
 
         return $this;
     }
