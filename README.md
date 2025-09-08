@@ -41,6 +41,7 @@ This is especially useful for creating short, memorable links for marketing camp
 - Hit Count: See how many times an alias is being visited (including the date/time of the last visit)
 - Test Interface: You can easily test if an alias works as expected (also with browser languages that differ from your default one)
 - Support for Fragment Identifiers: When the alias target is a page, you can specify the exact point where the browser should land (for example, `/target#point-in-page`)
+- Sopport for POST Forwarding: When the users send POST requests to the alias, you can configure the package to forward that data via POST
 
 ### How It Works
 
@@ -67,6 +68,7 @@ There you can manage all the URL aliases.
   - you create an alias named `/alias` that points to `/about`
   - `/alias` would resolve to `/about`
   - but `/alias/me` won't resolve to `/about/me`
+- Forwarding files via POST is not supported: the package will only forward *normal* fields received via POST
 
 ## Do you really want to say thank you?
 

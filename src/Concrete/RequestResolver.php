@@ -23,6 +23,10 @@ final class RequestResolver
 
     public const TESTFIELD_OVERRIDEACCEPTLANGUAGE = 'ua-testing_url_aliases_acceptlanguage';
 
+    private const COMMON_RESPONSE_HEADERS = [
+        'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+    ];
+
     /**
      * @var \Concrete\Package\UrlAliases\Entity\UrlAliasRepository
      */
@@ -100,13 +104,11 @@ final class RequestResolver
         if ($isTesting) {
             return $this->buildTestingResponse(t('Users will be redirected to: %s', $resolved->url));
         }
-        $response = $this->responseFactory->redirect(
-            $resolved->url,
-            Response::HTTP_TEMPORARY_REDIRECT,
-            [
-                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
-            ]
-        );
+        if ($target->isForwardPost() && $request->getMethod() === 'POST') {
+            $response = $this->buildForwardPostResponse($resolved->url, $request);
+        } else {
+            $response = $this->buildRedirectResponse($resolved->url);
+        }
         if ($hitIt) {
             $urlAlias->hit();
             $this->repo->getEntityManager()->flush();
@@ -252,5 +254,55 @@ EOT
         }
 
         return [$language, $script, $territory];
+    }
+
+    private function buildRedirectResponse(string $targetUrl): Response
+    {
+        return $this->responseFactory->redirect($targetUrl, Response::HTTP_TEMPORARY_REDIRECT, self::COMMON_RESPONSE_HEADERS);
+    }
+
+    private function buildForwardPostResponse(string $targetUrl, Request $request): Response
+    {
+        $charset = APP_CHARSET;
+        $hTargetUrl = htmlspecialchars($targetUrl, ENT_QUOTES, APP_CHARSET);
+        $html = <<<EOT
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="{$charset}" />
+</head>
+<body onload="document.forms[0].submit()">
+    <form method="POST" action="{$hTargetUrl}">
+
+EOT
+        ;
+        $renderFields = null;
+        $renderFields = static function (array $data, string $namePrefix = '') use (&$renderFields, &$html): void {
+            foreach ($data as $key => $value) {
+                $key = (string) $key;
+                $name = $namePrefix === '' ? $key : "{$namePrefix}[{$key}]";
+                if (is_array($value)) {
+                    $renderFields($value, $name);
+                } else {
+                    $escapedName = htmlspecialchars($name, ENT_QUOTES, APP_CHARSET);
+                    $escapedValue = htmlspecialchars((string) $value, ENT_QUOTES, APP_CHARSET);
+                    $html .= <<<EOT
+        <input type="hidden" name="{$escapedName}" value="{$escapedValue}" />
+
+EOT
+                    ;
+                }
+            }
+        };
+        $renderFields($request->request->all());
+        $html .= <<<'EOT'
+    </form>
+</body>
+</html>
+
+EOT
+        ;
+
+        return new Response($html, Response::HTTP_OK, self::COMMON_RESPONSE_HEADERS);
     }
 }

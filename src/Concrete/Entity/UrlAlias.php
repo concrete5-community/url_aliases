@@ -128,6 +128,15 @@ class UrlAlias implements Target
     protected $forwardQuerystringParams;
 
     /**
+     * Forward POST requests and received data?
+     *
+     * @Doctrine\ORM\Mapping\Column(type="boolean", nullable=false, options={"comment":"Forward POST requests and received data?"})
+     *
+     * @var bool
+     */
+    protected $forwardPost;
+
+    /**
      * The date/time of the first hit.
      *
      * @Doctrine\ORM\Mapping\Column(type="datetime", nullable=true, options={"comment":"Date/time of the first hit"})
@@ -176,6 +185,7 @@ class UrlAlias implements Target
         $this->targetValue = '';
         $this->fragmentIdentifier = '';
         $this->forwardQuerystringParams = false;
+        $this->forwardPost = false;
         $this->firstHit = null;
         $this->lastHit = null;
         $this->hitCount = 0;
@@ -373,6 +383,28 @@ class UrlAlias implements Target
     public function setForwardQuerystringParams(bool $value): self
     {
         $this->forwardQuerystringParams = $value;
+
+        return $this;
+    }
+
+    /**
+     * Forward POST requests and received data?
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::isForwardPost()
+     */
+    public function isForwardPost(): bool
+    {
+        return $this->forwardPost;
+    }
+
+    /**
+     * Forward POST requests and received data?
+     *
+     * @return $this
+     */
+    public function setForwardPost(bool $value): self
+    {
+        $this->forwardPost = $value;
 
         return $this;
     }

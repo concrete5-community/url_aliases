@@ -273,4 +273,14 @@ class LocalizedTarget implements Target
     {
         return $this->getUrlAlias()->isForwardQuerystringParams();
     }
+
+    /**
+     * Forward POST requests and received data?
+     *
+     * @see \Concrete\Package\UrlAliases\Entity\Target::isForwardPost()
+     */
+    public function isForwardPost(): bool
+    {
+        return $this->getUrlAlias()->isForwardPost();
+    }
 }
