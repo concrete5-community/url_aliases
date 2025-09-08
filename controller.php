@@ -19,7 +19,7 @@ class Controller extends Package
 {
     protected $pkgHandle = 'url_aliases';
 
-    protected $pkgVersion = '0.0.1';
+    protected $pkgVersion = '0.0.2';
 
     /**
      * {@inheritdoc}
@@ -104,6 +104,7 @@ class Controller extends Package
     private function registerRoutes(): void
     {
         $router = $this->app->make(RouterInterface::class);
-        $router->get('/dashboard/system/url-aliases/edit', Controller\Dialog\EditUrlAlias::class . '::view');
+        $router->get('/dashboard/system/url-aliases/edit-url-alias', Controller\Dialog\EditUrlAlias::class . '::view');
+        $router->get('/dashboard/system/url-aliases/edit-localized-target', Controller\Dialog\EditLocalizedTarget::class . '::view');
     }
 }

@@ -8,7 +8,7 @@ use Concrete\Core\File\File;
 use Concrete\Core\Http\ResponseFactoryInterface;
 use Concrete\Core\Page\Page;
 use Concrete\Core\Url\Resolver\Manager\ResolverManagerInterface;
-use Concrete\Package\UrlAliases\Entity\UrlAlias;
+use Concrete\Package\UrlAliases\Entity\Target;
 use Concrete\Package\UrlAliases\TargetResolver\Result;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\Request;
@@ -29,17 +29,17 @@ final class TargetResolver
         $this->pageUrlResolver = $urlResolver->getResolver('concrete.page');
     }
 
-    public function resolveUrlAlias(UrlAlias $urlAlias, ?Request $request = null): Result
+    public function resolve(Target $target, ?Request $request = null): Result
     {
         try {
-            switch ($urlAlias->getTargetType()) {
-                case UrlAlias::TARGETTYPE_PAGE:
-                    return $this->resolvePage($urlAlias, $request);
+            switch ($target->getTargetType()) {
+                case Target::TARGETTYPE_PAGE:
+                    return $this->resolvePage($target, $request);
                     break;
-                case UrlAlias::TARGETTYPE_FILE:
-                    return $this->resolveFile($urlAlias, $request);
-                case UrlAlias::TARGETTYPE_EXTERNAL_URL:
-                    return $this->resolveExternalUrl($urlAlias, $request);
+                case Target::TARGETTYPE_FILE:
+                    return $this->resolveFile($target, $request);
+                case Target::TARGETTYPE_EXTERNAL_URL:
+                    return $this->resolveExternalUrl($target, $request);
                 default:
                     throw new RuntimeException(t('Unrecognized target type'));
             }
@@ -48,9 +48,9 @@ final class TargetResolver
         }
     }
 
-    private function resolvePage(UrlAlias $urlAlias, ?Request $request = null): Result
+    private function resolvePage(Target $target, ?Request $request = null): Result
     {
-        $pageID = (int) trim($urlAlias->getTargetValue());
+        $pageID = (int) trim($target->getTargetValue());
         if ($pageID <= 0) {
             throw new RuntimeException(t('Invalid parameter: %s', 'pageID'));
         }
@@ -60,14 +60,14 @@ final class TargetResolver
         }
 
         return Result::success(
-            $this->finalizeUrl((string) $this->pageUrlResolver->resolve([$page]), $urlAlias, $request),
+            $this->finalizeUrl((string) $this->pageUrlResolver->resolve([$page]), $target, $request),
             t('Page: %s', $page->isGeneratedCollection() ? t($page->getCollectionName()) : $page->getCollectionName())
         );
     }
 
-    private function resolveFile(UrlAlias $urlAlias, ?Request $request = null): Result
+    private function resolveFile(Target $target, ?Request $request = null): Result
     {
-        $fileID = (int) trim($urlAlias->getTargetValue());
+        $fileID = (int) trim($target->getTargetValue());
         if ($fileID <= 0) {
             throw new RuntimeException(t('Invalid parameter: %s', 'fileID'));
         }
@@ -78,26 +78,26 @@ final class TargetResolver
         }
 
         return Result::success(
-            $this->finalizeUrl((string) $fileVersion->getDownloadURL(), $urlAlias, $request),
+            $this->finalizeUrl((string) $fileVersion->getDownloadURL(), $target, $request),
             t('File: %s', $fileVersion->getFileName())
         );
     }
 
-    private function resolveExternalUrl(UrlAlias $urlAlias, ?Request $request = null): Result
+    private function resolveExternalUrl(Target $target, ?Request $request = null): Result
     {
         return Result::success(
-            $this->finalizeUrl($urlAlias->getTargetValue(), $urlAlias, $request),
+            $this->finalizeUrl($target->getTargetValue(), $target, $request),
             t('External URL')
         );
     }
 
-    private function finalizeUrl(string $targetUrl, UrlAlias $urlAlias, ?Request $request): string
+    private function finalizeUrl(string $targetUrl, Target $target, ?Request $request): string
     {
         $components = parse_url($targetUrl);
         if ($components === false) {
             throw new RuntimeException(t('Failed to parse the URL "%s"', $targetUrl));
         }
-        if ($urlAlias->isForwardQuerystringParams() === false || $request === null || $request->query->count() === 0) {
+        if ($target->isForwardQuerystringParams() === false || $request === null || $request->query->count() === 0) {
             return $targetUrl;
         }
         if (empty($components['query'] ?? '')) {

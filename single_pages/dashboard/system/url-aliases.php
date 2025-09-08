@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Concrete\Package\UrlAliases\RequestResolver;
+
 defined('C5_EXECUTE') or die('Access Denied.');
 
 /**
@@ -10,9 +12,58 @@ defined('C5_EXECUTE') or die('Access Denied.');
  * @var Concrete\Core\Validation\CSRF\Token $token
  * @var string $currentLocale
  * @var string $rootUrl
+ * @var array $acceptLanguageDictionaries
+ * @var string $currentAcceptLanguageHeader
  * @var array $urlAliases
  */
 
+ob_start();
+?>
+<div class="row">
+    <div class="col-4">
+        <div class="form-group">
+            <label v-bind:for="`${idPrefix}-language`" class="form-label"><?= t('Language') ?></label>
+            <div class="input-group">
+                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-language`" v-bind:value="language" v-on:change="$emit('update-language', $event.target.value)" v-bind:disabled="disabled">
+                    <option v-if="language === ''" value="">** <?= t('Please Select') ?> **</option>
+                    <option v-for="l in DICTIONARY.LANGUAGES" v-bind:key="l.code" v-bind:value="l.code">{{ l.name }}</option>
+                </select>
+                <span class="input-group-addon input-group-text" v-if="language !== ''"><code>{{ language }}</code></span>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="form-group">
+            <label v-bind:for="`${idPrefix}-script`" class="form-label"><?= t('Script') ?></label>
+            <div class="input-group">
+                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-script`" v-bind:value="script" v-on:input="$emit('update-script', $event.target.value)" v-bind:disabled="disabled">
+                    <option v-if="allowAny" value="*">** <?= tc('Script', 'Any') ?> **</option>
+                    <option value="">** <?= tc('Script', 'None') ?> **</option>
+                    <option v-for="s in DICTIONARY.SCRIPTS" v-bind:key="s.code" v-bind:value="s.code">{{ s.name }}</option>
+                </select>
+                <span class="input-group-addon input-group-text" v-if="script !== '*' && script !== ''"><code>{{ script }}</code></span>
+            </div>
+        </div>
+    </div>
+    <div class="col-4">
+        <div class="form-group">
+            <label v-bind:for="`${idPrefix}-territory`" class="form-label"><?= t('Territory') ?></label>
+            <div class="input-group">
+                <select class="form-control form-control-sm" v-bind:id="`${idPrefix}-territory`" v-bind:value="territory" v-on:input="$emit('update-territory', $event.target.value)" v-bind:disabled="disabled">
+                    <option v-if="allowAny" value="*">** <?= tc('Territory', 'Any') ?> **</option>
+                    <option value="">** <?= tc('Territory', 'None') ?> **</option>
+                    <optgroup v-for="c in DICTIONARY.CONTINENTS" v-bind:key="c.name" v-bind:label="c.name">
+                        <option v-for="t in c.territories" v-bind:key="t.code" v-bind:value="t.code">{{ t.name }}</option>
+                    </optgroup>
+                </select>
+                <span class="input-group-addon input-group-text" v-if="territory !== '*' && territory !== ''"><code>{{ territory }}</code></span>
+            </div>
+        </div>
+    </div>
+</div>
+<?php
+$acceptHeaderBuilderTemplate = ob_get_contents();
+ob_end_clean();
 ?>
 <div id="ua-app" v-cloak>
     <div v-if="urlAliases.length === 0" class="alert alert-info">
@@ -113,6 +164,19 @@ defined('C5_EXECUTE') or die('Access Denied.');
                     <td>
                         <div v-if="ua.targetInfo.error" class="alert alert-danger" style="margin: 0; padding: 0.3em; white-space: pre-wrap">{{ ua.targetInfo.error }}</div>
                         <a v-else target="_blank" v-bind:href="ua.targetInfo.url">{{ ua.targetInfo.displayName }}</a>
+                        <ul class="list-unstyled mb-0">
+                            <?= t('Targets by browser language') ?>
+                            <li v-for="lt in ua.localizedTargets" v-bind:key="lt.it">
+                                <a href="#" class="btn btn-sm btn-info" v-on:click.prevent="editLocalizedTarget(ua, lt)">
+                                    <code>{{ describeLocalizedTarget(lt) }}</code>
+                                </a>
+                                <span v-if="lt.targetInfo.error" class="text-danger" style="white-space: pre-wrap">{{ lt.targetInfo.error }}</span>
+                                <a v-else target="_blank" v-bind:href="lt.targetInfo.url">{{ lt.targetInfo.displayName }}</a>
+                            </li>
+                            <li>
+                                <a href="#" class="btn btn-sm btn-info" v-on:click.prevent="editLocalizedTarget(ua)">Add</a>
+                            </li>
+                        </ul>
                     </td>
                     <td>{{ formatDateTime(ua.firstHit) }}</td>
                     <td>{{ formatDateTime(ua.lastHit) }}</td>
@@ -126,6 +190,55 @@ defined('C5_EXECUTE') or die('Access Denied.');
                 </tr>
             </tbody>
         </table>
+    </div>
+    <div style="display: none">
+        <div id="ua-urlalias-test" class="ccm-ui">
+            <div class="form-group">
+                <label for="ua-urlalias-test-urlsuffix" class="form-label"><?= t('URL to be tested') ?></label>
+                <div class="input-group">
+                    <span class="input-group-addon input-group-text">{{ rootUrl }}</span>
+                    <input type="text" class="form-control" v-model.trim="testing.urlSuffix" spellcheck="false" ref="testUrlSuffix" />
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label"><?= t('Test with specific browser language') ?></label>
+                <div v-if="currentAcceptLanguageHeader !== ''" class="form-check">
+                    <input class="form-check-input" type="radio" value="current" v-model="testing.useAcceptLanguageHeader" name="ua-urlalias-test-use-ac" id="ua-urlalias-test-use-ac-current">
+                    <label class="form-check-label" for="ua-urlalias-test-use-ac-current">
+                        <?= t('Use your browser default configuration') ?>
+                        <span class="small text-muted">(<code class="text-muted">{{ currentAcceptLanguageHeader }}</code>)</span>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="empty" v-model="testing.useAcceptLanguageHeader" name="ua-urlalias-test-use-ac" id="ua-urlalias-test-use-ac-empty">
+                    <label class="form-check-label" for="ua-urlalias-test-use-ac-empty">
+                        <?= t('Use an empty browser language') ?>
+                    </label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" value="custom" v-model="testing.useAcceptLanguageHeader" name="ua-urlalias-test-use-ac" id="ua-urlalias-test-use-ac-custom">
+                    <label class="form-check-label" for="ua-urlalias-test-use-ac-custom">
+                        <?= t('Use an custom browser language') ?>
+                    </label>
+                    <ua-accept-header-builder
+                        v-bind:disabled="testing.useAcceptLanguageHeader !== 'custom'"
+                        v-bind:allow-any="false"
+                        v-bind:language="testing.customAcceptLanguageHeader.language" v-on:update-language="testing.customAcceptLanguageHeader.language = $event"
+                        v-bind:script="testing.customAcceptLanguageHeader.script" v-on:update-script="testing.customAcceptLanguageHeader.script = $event"
+                        v-bind:territory="testing.customAcceptLanguageHeader.territory" v-on:update-territory="testing.customAcceptLanguageHeader.territory = $event"
+                    >
+                    </ua-accept-header-builder>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label"><?= t('Result') ?></label>
+                <iframe style="width: 100%; height: 150px; border: 0; inset: 0" v-bind:style="{visibility: testing.displayResult ? 'visible' : 'hidden'}" name="ua-urlalias-test-iframe" ref="testIFrame"></iframe>
+            </div>
+            <div class="dialog-buttons">
+                <button class="btn btn-secondary pull-left" v-on:click.prevent="hideTestDialog()"><?= t('Close') ?></button>
+                <button class="btn btn-primary pull-right" v-on:click.prevent="startTestUrl()"><?= t('Test') ?></button>
+            </div>
+        </div>
     </div>
     <div class="ccm-dashboard-form-actions-wrapper">
         <div class="ccm-dashboard-form-actions">
@@ -159,7 +272,40 @@ const COLLATOR = new Intl.Collator(<?= json_encode(str_replace('_', '-', $curren
 });
 const AUTOREFRESH_INTERVAL = 5000;
 let autorefreshTimer = null;
-let editEventHook = null;
+
+let urlAliasApp;
+
+const eventHooks = (function() {
+    async function invoke(method, e, successCallback) {
+        let success = false;
+        try {
+            await urlAliasApp[method](e.detail.data, successCallback);
+            if (successCallback) {
+                return;
+            }
+            success = true;
+        } catch (x) {
+            ConcreteAlert.error({message: x?.message || x || <?= json_encode(t('Unknown error')) ?>});
+        }
+        if (!successCallback) {
+            e.detail.done(success);
+        }
+    };
+
+    return {
+        saveUrlAlias: async (e) => {
+            invoke('saveUrlAlias', e);
+        },
+        saveLocalizedTarget: async (e) => {
+            invoke('saveLocalizedTarget', e);
+        },
+        deleteLocalizedTarget: async (e) => {
+            invoke('deleteLocalizedTarget', e, () => {
+                e.detail.done();
+            });
+        },
+    };
+})();
 
 function ready() {
 
@@ -191,8 +337,45 @@ function ready() {
             </span>
         </a>`,
     });
+    
+    let uaAcceptHeaderBuilderCounter = 0;
 
-    new Vue({
+    Vue.component('ua-accept-header-builder', {
+        props: {
+            language: {
+                type: String,
+                required: true,
+            },
+            script: {
+                type: String,
+                required: true,
+            },
+            territory: {
+                type: String,
+                required: true,
+            },
+            allowAny: {
+                type: Boolean,
+                required: true,
+            },
+            disabled: {
+                type: Boolean,
+                default: false,
+            },
+        },
+        data() {
+            return {
+                idPrefix: '',
+                DICTIONARY: <?= json_encode($acceptLanguageDictionaries) ?>,
+            };
+        },
+        beforeMount() {
+            this.idPrefix = `ua-accept-header-builder-${++uaAcceptHeaderBuilderCounter}`;
+        },
+        template: <?= json_encode($acceptHeaderBuilderTemplate) ?>,
+    });
+
+    urlAliasApp = new Vue({
         el: '#ua-app',
         data() {
             return {
@@ -233,32 +416,34 @@ function ready() {
                 autorefreshEnabled: false,
                 autorefreshing: false,
                 rootUrl: <?= json_encode($rootUrl) ?>,
+                currentAcceptLanguageHeader: <?= json_encode($currentAcceptLanguageHeader) ?>,
+                testing: {
+                    urlSuffix: '',
+                    useAcceptLanguageHeader: <?= json_encode($currentAcceptLanguageHeader === '' ? 'empty' : 'current') ?>,
+                    customAcceptLanguageHeader: {
+                        language: '',
+                        script: '',
+                        territory: '',
+                    },
+                    displayResult: false,
+                },
                 urlAliases: <?= json_encode($urlAliases) ?>.map((urlAlias) => this.unserializeUrlAlias(urlAlias)),
             };
         },
         mounted() {
+            window.addEventListener('ccm.url_aliases.saveUrlAlias', eventHooks.saveUrlAlias);
+            window.addEventListener('ccm.url_aliases.saveLocalizedTarget', eventHooks.saveLocalizedTarget);
+            window.addEventListener('ccm.url_aliases.deleteLocalizedTarget', eventHooks.deleteLocalizedTarget);
             this.toggleSort('createdOn');
-            editEventHook = async (e) => {
-                let success = false;
-                try {
-                    await this.saveUrlAlias(e.detail.data);
-                    success = true;
-                } catch (x) {
-                    ConcreteAlert.error({message: x?.message || x || <?= json_encode(t('Unknown error')) ?>});
-                }
-                e.detail.done(success);
-            };
-            window.addEventListener('ccm.url_aliases.saveUrlAlias', editEventHook);
             if (this.autorefreshEnabled) {
                 clearTimeout(autorefreshTimer);
                 autorefreshTimer = setTimeout(() => this.autorefresh(), AUTOREFRESH_INTERVAL);
             }
         },
         destroyed() {
-            if (editEventHook) {
-                window.removeEventListener('ccm.url_aliases.saveUrlAlias', editEventHook);
-                editEventHook = null;
-            }
+            window.removeEventListener('ccm.url_aliases.deleteLocalizedTarget', eventHooks.deleteLocalizedTarget);
+            window.removeEventListener('ccm.url_aliases.saveLocalizedTarget', eventHooks.saveLocalizedTarget);
+            window.removeEventListener('ccm.url_aliases.saveUrlAlias', eventHooks.saveUrlAlias);
         },
         watch: {
             autorefreshEnabled() {
@@ -291,6 +476,13 @@ function ready() {
             },
             formatInteger(value) {
                 return typeof value === 'number' ? INTEGER_FORMATTER.format(value) : '';
+            },
+            describeLocalizedTarget(localizedTarget) {
+                return [
+                    localizedTarget.language,
+                    localizedTarget.script,
+                    localizedTarget.territory,
+                ].filter(c => c !== '').join('-');
             },
             toggleSort(key) {
                 if (this.sort.key === key) {
@@ -360,10 +552,10 @@ function ready() {
             editUrlAlias(urlAlias, asNew) {
                 jQuery.fn.dialog.open({
                     width: Math.min(Math.max(window.innerWidth - 50, 300), 800),
-                    height: 500,
+                    height: 'auto',
                     modal: true,
                     title: urlAlias ? (asNew ? <?= json_encode(t('Clone Alias')) ?> : <?= json_encode(t('Edit Alias')) ?>) : <?= json_encode(t('Add Alias')) ?>,
-                    href: <?= json_encode((string) $view->action('edit')) ?> + `?id=${urlAlias?.id || 'new'}&asNew=${asNew ? 1 : 0}`,
+                    href: <?= json_encode((string) $view->action('edit-url-alias')) ?> + `?id=${urlAlias?.id || 'new'}&asNew=${asNew ? 1 : 0}`,
                 });
             },
             async saveUrlAlias(data) {
@@ -407,6 +599,53 @@ function ready() {
                     this.urlAliases.splice(index, 1);
                 }
             },
+            editLocalizedTarget(urlAlias, localizedTarget) {
+                jQuery.fn.dialog.open({
+                    width: Math.min(Math.max(window.innerWidth - 50, 300), 800),
+                    height: 'auto',
+                    modal: true,
+                    title: localizedTarget ? <?= json_encode(t('Edit Target by browser language')) ?> : <?= json_encode(t('Add Target by browser language')) ?>,
+                    href: <?= json_encode((string) $view->action('edit-localized-target')) ?> + `?urlAlias=${urlAlias.id}&id=${localizedTarget?.id || 'new'}`,
+                });
+            },
+            async saveLocalizedTarget(data) {
+                const urlAlias = await this.ajax(
+                    <?= json_encode($view->action('saveLocalizedTarget')) ?>,
+                    <?= json_encode($token->generate('ua-localizedtarget-save')) ?>,
+                    data
+                );
+                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
+            },
+            async deleteLocalizedTarget(data, successCallback, confirmed) {
+                if (!confirmed) {
+                    ConcreteAlert.confirm(
+                        <?= json_encode(t('Are you sure you want to delete this Target by browser language?')) ?>,
+                        () => {
+                            jQuery.fn.dialog.closeTop();
+                            this.deleteLocalizedTarget(data, successCallback, true);
+                        },
+                        'btn-danger',
+                        <?= json_encode(t('Delete')) ?>
+                    );
+                    return;
+                }
+                jQuery.fn.dialog.showLoader();
+                let urlAlias;
+                try {
+                    urlAlias = await this.ajax(
+                        <?= json_encode($view->action('deleteLocalizedTarget')) ?>,
+                        <?= json_encode($token->generate('ua-localizedtarget-delete')) ?>,
+                        data
+                    );
+                } catch (x) {
+                    ConcreteAlert.error({message: x?.message || x || <?= json_encode(t('Unknown error')) ?>});
+                    return;
+                } finally {
+                    jQuery.fn.dialog.hideLoader();
+                }
+                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
+                successCallback();
+            },
             addOrRefresh(urlAlias) {
                 const existing = this.urlAliases.find((ua) => ua.id === urlAlias.id);
                 if (existing) {
@@ -419,63 +658,92 @@ function ready() {
                     this.urlAliases.push(urlAlias);
                 }
             },
+            
             testUrlAlias(urlAlias) {
                 if (!urlAlias?.id || !urlAlias.enabled) {
                     return;
                 }
-                let question = <?= json_encode(t('Please specify the URL to be checked')) ?>;
-                let testUrl = this.rootUrl + urlAlias.pathAndQuerystring;
-                while (true) {
-                    testUrl = window.prompt(question, testUrl)?.replace(/^\s+|\s+/g, '');
-                    if (!testUrl) {
-                        return;
-                    }
-                    try {
-                        new URL(testUrl);
-                    } catch {
-                        question = <?= json_encode(t('The URL is not valid. Retry')) ?>;
-                        continue;
-                    }
-                    break;
-                }
-                const dialog = document.createElement('dialog');
-                dialog.style.padding = '0';
-                dialog.style.border = 'none';
-                dialog.style.width = '75vw';
-                dialog.style.height = '300px';
-                dialog.style.maxHeight = '90vh';
-                dialog.style.margin = 'auto';
-                dialog.style.position = 'relative';
-                dialog.addEventListener('close', () => dialog.remove());
-                dialog.addEventListener('click', (e) => {
-                    if (e.target === dialog) {
-                        dialog.close();
-                    }
+                this.testing.urlSuffix = urlAlias.pathAndQuerystring;
+                jQuery.fn.dialog.open({
+                    element: '#ua-urlalias-test',
+                    modal: true,
+                    width: Math.min(Math.max(window.innerWidth - 50, 500), 900),
+                    title: <?= json_encode(t('Test URL Alias')) ?>,
+                    height: 'auto',
+                    open: () => {
+                        this.$refs.testUrlSuffix.focus();
+                    },
+                    close: () => {
+                        this.testing.displayResult = false;
+                    },
                 });
-                const iframeContainer = document.createElement('div');
-                const iframe = document.createElement('iframe');
-                iframe.name = 'dialog_iframe_' + Date.now();
-                iframe.style.width = '100%';
-                iframe.style.height = '100%';
-                iframe.style.border = '0';
-                iframe.style.inset = '0';
-                iframe.style.position = 'absolute';
-                dialog.appendChild(iframe);
-                const form = document.createElement('form');
-                form.action = testUrl;
-                form.method = 'POST';
-                form.target = iframe.name;
-                form.style.display = 'none';
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'ua-testing_url_aliases_token';
-                input.value = <?= json_encode($token->generate('ua-testing_url_aliases_token')) ?>;
-                form.appendChild(input);
-                document.body.appendChild(dialog);
-                document.body.appendChild(form);
-                form.submit();
-                form.remove();
-                dialog.showModal();
+                return;
+            },
+            startTestUrl() {
+                try {
+                    this.testing.displayResult = false;
+                    this.$refs.testIFrame.src = 'about:blank';
+                    try {
+                        this.$refs.testIFrame.contentWindow.document.open();
+                        this.$refs.testIFrame.contentWindow.document.write('');
+                        this.$refs.testIFrame.contentWindow.document.close();
+                    } catch {
+                    }
+                    let urlSuffix = this.testing.urlSuffix.replace(/^\/+/, '');
+                    if (urlSuffix === '') {
+                        this.$refs.testUrlSuffix.focus();
+                        throw new Error(<?= json_encode(t('Please specify the URL to be tested')) ?>);
+                    }
+                    const testUrl = this.rootUrl + urlSuffix;
+                    try {
+                        new window.URL(testUrl);
+                    } catch {
+                        this.$refs.testUrlSuffix.focus();
+                        throw new Error(<?= json_encode(t('The URL to be tested is not valid')) ?>);
+                    }
+                    const form = document.createElement('form');
+                    form.style.display = 'none';
+                    form.action = testUrl;
+                    form.method = 'POST';
+                    form.target = this.$refs.testIFrame.name;
+                    const addInput = (name, value) => {
+                        const input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = name;
+                        input.value = value;
+                        form.appendChild(input);
+                    };
+                    addInput(<?= json_encode(RequestResolver::TESTFIELD_TOKEN) ?>, <?= json_encode($token->generate(RequestResolver::TESTFIELD_TOKEN)) ?>);
+                    switch (this.testing.useAcceptLanguageHeader) {
+                        case 'current':
+                            break;
+                        case 'empty':
+                            addInput(<?= json_encode(RequestResolver::TESTFIELD_OVERRIDEACCEPTLANGUAGE) ?>, '');
+                            break;
+                        case 'custom':
+                            if (this.testing.customAcceptLanguageHeader.language === '') {
+                                throw new Error(<?= json_encode(t('Please specify the custom language')) ?>);
+                            }
+                            addInput(
+                                <?= json_encode(RequestResolver::TESTFIELD_OVERRIDEACCEPTLANGUAGE) ?>,
+                                [
+                                    this.testing.customAcceptLanguageHeader.language,
+                                    this.testing.customAcceptLanguageHeader.script,
+                                    this.testing.customAcceptLanguageHeader.territory,
+                                ].filter((c) => c !== '').join('-')
+                            );
+                            break;
+                    }
+                    document.body.appendChild(form);
+                    form.submit();
+                    form.remove();
+                    setTimeout(() => this.testing.displayResult = true, 100);
+                } catch (x) {
+                    ConcreteAlert.error({message: x?.message || x || <?= json_encode(t('Unknown error')) ?>});
+                }
+            },
+            hideTestDialog() {
+                jQuery.fn.dialog.closeTop();
             },
             async ajax(url, token, bodyParams) {
                 const request = {
