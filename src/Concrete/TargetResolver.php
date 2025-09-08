@@ -93,6 +93,13 @@ final class TargetResolver
 
     private function finalizeUrl(string $targetUrl, Target $target, ?Request $request): string
     {
+        switch ($target->getTargetType()) {
+            case Target::TARGETTYPE_PAGE:
+                if (($fragmentIdentifier = $target->getFragmentIdentifier()) !== '') {
+                    $targetUrl .= '#' . $fragmentIdentifier;
+                }
+                break;
+        }
         $components = parse_url($targetUrl);
         if ($components === false) {
             throw new RuntimeException(t('Failed to parse the URL "%s"', $targetUrl));

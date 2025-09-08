@@ -107,6 +107,7 @@ EOT
             ->setQuerystring($this->normalizeQuerystring($post->get('querystring')))
             ->setTargetType($targetType)
             ->setTargetValue($targetValue)
+            ->setFragmentIdentifier($this->normalizeFragmentIdentifier($post->get('fragmentIdentifier')))
             ->setEnabled($post->getBoolean('enabled'))
             ->setAcceptAdditionalQuerystringParams($post->getBoolean('acceptAdditionalQuerystringParams'))
             ->setForwardQuerystringParams($post->getBoolean('forwardQuerystringParams'))
@@ -198,6 +199,7 @@ EOT
             ->setTerritory(trim($post->get('territory', '')))
             ->setTargetType($targetType)
             ->setTargetValue($targetValue)
+            ->setFragmentIdentifier($this->normalizeFragmentIdentifier($post->get('fragmentIdentifier')))
         ;
         if ($localizedTarget->getLanguage() === '') {
             throw new UserMessageException(t('Please specify the language'));
@@ -269,6 +271,7 @@ EOT
             'enabled' => $urlAlias->isEnabled(),
             'targetType' => $urlAlias->getTargetType(),
             'targetValue' => $urlAlias->getTargetValue(),
+            'fragmentIdentifier' => $urlAlias->getFragmentIdentifier(),
             'forwardQuerystringParams' => $urlAlias->isForwardQuerystringParams(),
             'firstHit' => ($d = $urlAlias->getFirstHit()) === null ? null : $d->getTimestamp(),
             'lastHit' => ($d = $urlAlias->getLastHit()) === null ? null : $d->getTimestamp(),
@@ -294,6 +297,7 @@ EOT
             'territory' => $localizedTarget->getTerritory(),
             'targetType' => $localizedTarget->getTargetType(),
             'targetValue' => $localizedTarget->getTargetValue(),
+            'fragmentIdentifier' => $localizedTarget->getFragmentIdentifier(),
             'targetInfo' => $services['targetResolver']->resolve($localizedTarget),
         ];
     }
@@ -414,6 +418,24 @@ EOT
         }
 
         return $externalUrl;
+    }
+
+    /**
+     * @param string|mixed $raw
+     */
+    private function normalizeFragmentIdentifier($raw): string
+    {
+        if (!is_string($raw) || ($raw = trim($raw)) === '' || $raw === '#') {
+            return '';
+        }
+        if ($raw[0] === '#') {
+            $raw = substr($raw, 1);
+        }
+        if (!preg_match('/^[A-Za-z][A-Za-z0-9\-_:.]*$/', $raw)) {
+            throw new UserMessageException(t('The name of an anchor must start with a letter, and may be followed by any number of letters, digits, hyphens, underscores, colons, and periods.'));
+        }
+
+        return $raw;
     }
 
     private function getAcceptLanguageDictionaries(): array
