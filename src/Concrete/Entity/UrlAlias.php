@@ -18,12 +18,14 @@ defined('C5_EXECUTE') or die('Access Denied.');
  * @Doctrine\ORM\Mapping\Table(
  *     name="UrlAliases",
  *     indexes={
- *         @Doctrine\ORM\Mapping\Index(name="mlUrlAliasPath", columns={"path"}, options={"lengths":{255}})
+ *         @Doctrine\ORM\Mapping\Index(columns={"pathIndexed"})
  *     }
  * )
  */
 class UrlAlias implements Target
 {
+    public const PATH_INDEXED_MAX_LENGTH = 255;
+
     /**
      * The record ID (null if not persisted).
      *
@@ -52,6 +54,15 @@ class UrlAlias implements Target
      * @var string
      */
     protected $path;
+
+    /**
+     * The normalized path alias (indexed).
+     *
+     * @Doctrine\ORM\Mapping\Column(type="string", length=255, nullable=false, options={"comment":"Normalized path alias (indexed)"})
+     *
+     * @var string
+     */
+    protected $pathIndexed;
 
     /**
      * The querystring (without leading question mark).
@@ -144,7 +155,7 @@ class UrlAlias implements Target
     {
         $this->id = null;
         $this->createdOn = new DateTime();
-        $this->path = '';
+        $this->setPath('');
         $this->querystring = '';
         $this->acceptAdditionalQuerystringParams = true;
         $this->enabled = true;
@@ -189,6 +200,7 @@ class UrlAlias implements Target
     public function setPath(string $value): self
     {
         $this->path = $value;
+        $this->pathIndexed = mb_substr($value, 0, self::PATH_INDEXED_MAX_LENGTH);
 
         return $this;
     }
