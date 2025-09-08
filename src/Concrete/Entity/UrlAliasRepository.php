@@ -42,6 +42,8 @@ class UrlAliasRepository extends EntityRepository
     public function findByPathAndQuerysring(string $path, string $querystring, ?bool $enabled = true, ?int $maxResults = null): array
     {
         $qb = $this->createQueryBuilder('ua')
+            ->setParameter('pathIndexed', mb_substr($path, 0, UrlAlias::PATH_INDEXED_MAX_LENGTH))
+            ->andWhere('ua.pathIndexed = :pathIndexed')
             ->setParameter('path', $path)
             ->andWhere('ua.path = :path')
         ;
