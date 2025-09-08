@@ -94,7 +94,13 @@ final class RequestResolver
         if ($isTesting) {
             return $this->buildTestingResponse(t('Users will be redirected to: %s', $resolved->url));
         }
-        $response = $this->responseFactory->redirect($resolved->url, Response::HTTP_FOUND);
+        $response = $this->responseFactory->redirect(
+            $resolved->url,
+            Response::HTTP_TEMPORARY_REDIRECT,
+            [
+                'Cache-Control' => 'private, no-store, no-cache, must-revalidate',
+            ]
+        );
         if ($hitIt) {
             $urlAlias->hit();
             $this->repo->getEntityManager()->flush();
