@@ -145,7 +145,16 @@ ob_end_clean();
                 </tr>
             </thead>
             <tbody>
-                <tr v-for="ua in sortedUrlAliases" v-bind:key="ua.id" v-bind:class="{'table-warning': !ua.enabled, warning: !ua.enabled}">
+                <tr
+                    v-for="ua in sortedUrlAliases"
+                    v-bind:key="ua.id"
+                    v-bind:class="{
+                        'table-warning': !ua.enabled && ua._highlightCount <= 0,
+                        warning: !ua.enabled && ua._highlightCount <= 0,
+                        'table-primary': ua._highlightCount > 0,
+                        'info': ua._highlightCount > 0,
+                    }"
+                >
                     <td class="text-center">
                         <a href="#" v-on:click.prevent="toggleEnabled(ua)" style="text-decoration: none">
                             <span v-if="ua._togglingEnabled" v-bind:title="<?= h('ua.enabled ? ' . json_encode(t('Disabling alias...')) . ' : ' . json_encode(t('Enabling alias...'))) ?>">
@@ -469,6 +478,9 @@ function ready() {
                 if (!urlAlias._togglingEnabled) {
                     urlAlias._togglingEnabled = false;
                 }
+                if (!urlAlias._highlightCount) {
+                    urlAlias._highlightCount = 0;
+                }
                 return urlAlias;
             },
             formatDateTime(value) {
@@ -520,6 +532,7 @@ function ready() {
                         }
                     );
                     urlAlias.enabled = response.enabled;
+                    this.highlightUrlAlias(urlAlias);
                 } catch (x) {
                     ConcreteAlert.error({message: x?.message || x || <?= json_encode(t('Unknown error')) ?>});
                 } finally {
@@ -540,7 +553,7 @@ function ready() {
                         <?= json_encode($view->action('autoRefresh')) ?>,
                         <?= json_encode($token->generate('ua-autorefresh')) ?>
                     );
-                    urlAliases.forEach((urlAlias) => this.addOrRefresh(this.unserializeUrlAlias(urlAlias)));
+                    urlAliases.forEach((urlAlias) => this.addOrRefresh(urlAlias));
                 } catch (x) {
                     console.log(x);
                 } finally {
@@ -564,7 +577,7 @@ function ready() {
                     <?= json_encode($token->generate('ua-urlalias-save')) ?>,
                     data
                 );
-                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
+                this.addOrRefresh(urlAlias, true);
             },
             async deleteUrlAlias(urlAlias, confirmed) {
                 if (!confirmed) {
@@ -614,7 +627,7 @@ function ready() {
                     <?= json_encode($token->generate('ua-localizedtarget-save')) ?>,
                     data
                 );
-                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
+                this.addOrRefresh(urlAlias, true);
             },
             async deleteLocalizedTarget(data, successCallback, confirmed) {
                 if (!confirmed) {
@@ -643,10 +656,11 @@ function ready() {
                 } finally {
                     jQuery.fn.dialog.hideLoader();
                 }
-                this.addOrRefresh(this.unserializeUrlAlias(urlAlias));
+                this.addOrRefresh(urlAlias, true);
                 successCallback();
             },
-            addOrRefresh(urlAlias) {
+            addOrRefresh(urlAlias, highlight) {
+                urlAlias = this.unserializeUrlAlias(urlAlias);
                 const existing = this.urlAliases.find((ua) => ua.id === urlAlias.id);
                 if (existing) {
                     Object.keys(urlAlias).forEach((k) => {
@@ -654,11 +668,18 @@ function ready() {
                             existing[k] = urlAlias[k]
                         }
                     });
+                    urlAlias = existing;
                 } else {
                     this.urlAliases.push(urlAlias);
                 }
+                if (highlight) {
+                    this.highlightUrlAlias(urlAlias);
+                }
             },
-
+            highlightUrlAlias(urlAlias) {
+                urlAlias._highlightCount++;
+                setTimeout(() => urlAlias._highlightCount--, 1000);
+            },
             testUrlAlias(urlAlias) {
                 if (!urlAlias?.id || !urlAlias.enabled) {
                     return;
