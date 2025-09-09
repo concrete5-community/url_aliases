@@ -114,7 +114,7 @@ EOT
             ->setForwardPost($post->getBoolean('forwardPost'))
         ;
         if ($urlAlias->getPath() === '') {
-            throw new UserMessageException(t('Please specify the path of the alias Url'));
+            throw new UserMessageException(t('Please specify the path of the URL alias'));
         }
         if ($urlAlias->isEnabled()) {
             $this->checkUrlAliasClashes($urlAlias);

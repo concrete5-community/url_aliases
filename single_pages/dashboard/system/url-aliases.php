@@ -93,7 +93,7 @@ ob_end_clean();
                     </th>
                     <th>
                         <ua-list-sort-header
-                            text="<?= t('Created') ?>"
+                            text="<?= tc('Alias', 'Created') ?>"
                             v-bind:selected="sort.key === 'createdOn'"
                             v-bind:descending="sort.descending"
                             v-on:click="toggleSort('createdOn')"
