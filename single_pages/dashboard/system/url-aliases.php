@@ -670,10 +670,10 @@ function ready() {
                     width: Math.min(Math.max(window.innerWidth - 50, 500), 900),
                     title: <?= json_encode(t('Test URL Alias')) ?>,
                     height: 'auto',
-                    open: () => {
+                    onOpen: () => {
                         this.$refs.testUrlSuffix.focus();
                     },
-                    close: () => {
+                    onClose: () => {
                         this.testing.displayResult = false;
                     },
                 });
