@@ -30,6 +30,11 @@ interface Target
     public function isForwardQuerystringParams(): bool;
 
     /**
+     * Forward POST requests and received data?
+     */
+    public function isForwardPost(): bool;
+
+    /**
      * Get the fragment identifier to be appended to page targets.
      */
     public function getFragmentIdentifier(): string;

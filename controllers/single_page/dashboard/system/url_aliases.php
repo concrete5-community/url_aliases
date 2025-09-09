@@ -111,6 +111,7 @@ EOT
             ->setEnabled($post->getBoolean('enabled'))
             ->setAcceptAdditionalQuerystringParams($post->getBoolean('acceptAdditionalQuerystringParams'))
             ->setForwardQuerystringParams($post->getBoolean('forwardQuerystringParams'))
+            ->setForwardPost($post->getBoolean('forwardPost'))
         ;
         if ($urlAlias->getPath() === '') {
             throw new UserMessageException(t('Please specify the path of the alias Url'));
@@ -273,6 +274,7 @@ EOT
             'targetValue' => $urlAlias->getTargetValue(),
             'fragmentIdentifier' => $urlAlias->getFragmentIdentifier(),
             'forwardQuerystringParams' => $urlAlias->isForwardQuerystringParams(),
+            'forwardPost' => $urlAlias->isForwardPost(),
             'firstHit' => ($d = $urlAlias->getFirstHit()) === null ? null : $d->getTimestamp(),
             'lastHit' => ($d = $urlAlias->getLastHit()) === null ? null : $d->getTimestamp(),
             'hitCount' => $urlAlias->getHitCount(),

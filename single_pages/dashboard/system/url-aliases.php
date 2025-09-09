@@ -337,7 +337,7 @@ function ready() {
             </span>
         </a>`,
     });
-    
+
     let uaAcceptHeaderBuilderCounter = 0;
 
     Vue.component('ua-accept-header-builder', {
@@ -658,7 +658,7 @@ function ready() {
                     this.urlAliases.push(urlAlias);
                 }
             },
-            
+
             testUrlAlias(urlAlias) {
                 if (!urlAlias?.id || !urlAlias.enabled) {
                     return;

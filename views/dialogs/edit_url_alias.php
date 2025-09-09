@@ -63,6 +63,12 @@ ob_start();
                 <?= t('Forward received querystring parameters') ?>
             </label>
         </div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" v-model="forwardPost" id="ua-urlalias-editing-forwardpost">
+            <label class="form-check-label" for="ua-urlalias-editing-forwardpost">
+                <?= t('Forward POST requests and their data (excluding files)') ?>
+            </label>
+        </div>
     </div>
     <div class="dialog-buttons">
         <button class="btn btn-secondary pull-left" v-on:click.prevent="cancel()"><?= t('Cancel') ?></button>
@@ -115,6 +121,7 @@ function ready() {
                 pathAndQuerystring: <?= json_encode($urlAlias->getPathAndQuerystring()) ?>,
                 acceptAdditionalQuerystringParams: <?= json_encode($urlAlias->isAcceptAdditionalQuerystringParams()) ?>,
                 forwardQuerystringParams: <?= json_encode($urlAlias->isForwardQuerystringParams()) ?>,
+                forwardPost: <?= json_encode($urlAlias->isForwardPost()) ?>,
                 enabled: <?= json_encode($urlAlias->isEnabled()) ?>,
                 askFragmentIdentifier: false,
                 fragmentIdentifier: <?= json_encode($urlAlias->getFragmentIdentifier()) ?>,
@@ -174,6 +181,7 @@ function ready() {
                     acceptAdditionalQuerystringParams: this.acceptAdditionalQuerystringParams,
                     enabled: this.enabled,
                     forwardQuerystringParams: this.forwardQuerystringParams,
+                    forwardPost: this.forwardPost,
                 };
                 data.targetValue = this.$el.querySelector(`:scope [name="target_${data.targetType}"]`).value;
                 const ev = new CustomEvent('ccm.url_aliases.saveUrlAlias', {
