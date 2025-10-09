@@ -60,7 +60,7 @@ $template = preg_replace_callback(
 
         return '';
     },
-    $template
+    $template,
 );
 
 echo $template;

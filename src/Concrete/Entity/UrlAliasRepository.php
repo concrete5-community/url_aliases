@@ -11,7 +11,7 @@ use Symfony\Component\HttpFoundation\Request;
 
 defined('C5_EXECUTE') or die('Access Denied.');
 
-class UrlAliasRepository extends EntityRepository
+final class UrlAliasRepository extends EntityRepository
 {
     use NormalizePathTrait;
 
@@ -62,8 +62,8 @@ class UrlAliasRepository extends EntityRepository
                 $qb->getQuery()->getResult(),
                 function (UrlAlias $urlAlias) use ($querystring): bool {
                     return $this->urlAliasOkForQuerystring($urlAlias, $querystring);
-                }
-            )
+                },
+            ),
         );
     }
 
