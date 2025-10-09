@@ -58,7 +58,6 @@ class Aliases extends DashboardPageController
                     transform: rotate(360deg);
                 }
             }
-
             #ua-app table>tbody>tr>td {
                 transition: background-color 400ms linear;
             }
