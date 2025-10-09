@@ -9,6 +9,7 @@ use Concrete\Core\Error\ErrorList\ErrorList;
 use Concrete\Core\Error\UserMessageException;
 use Concrete\Core\Http\ResponseFactoryInterface;
 use Concrete\Core\Page\Controller\DashboardPageController;
+use Concrete\Core\Url\Resolver\Manager\ResolverManagerInterface;
 use Concrete\Package\UrlAliases\NotFoundLogService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -41,6 +42,13 @@ class Options extends DashboardPageController
         }
         $this->set('log404LogQueryString', $logQueryString);
         $this->set('log404entryMaxAge', (int) $config->get('url_aliases::options.log404.entryMaxAge'));
+        $rootUrl = rtrim((string) $this->app->make(ResolverManagerInterface::class)->resolve(['/']), '/');
+        if (ends_with($rootUrl, '/' . DISPATCHER_FILENAME)) {
+            $rootUrl = substr($rootUrl, 0, -strlen(DISPATCHER_FILENAME));
+        } else {
+            $rootUrl .= '/';
+        }
+        $this->set('rootUrl', $rootUrl);
 
         return null;
     }

@@ -16,6 +16,7 @@ defined('C5_EXECUTE') or die('Access Denied.');
  * @var bool $log404ExcludePathRXUseDefault
  * @var bool|string $log404LogQueryString
  * @var int $log404entryMaxAge
+ * @var string $rootUrl
  */
 
 ?>
@@ -112,7 +113,7 @@ defined('C5_EXECUTE') or die('Access Denied.');
 <div style="display: none">
     <div id="log404-excludepathrx-test">
         <div class="input-group input-group-sm">
-            <span class="input-group-addon input-group-text"><?= URL::to('/') ?></span>
+            <span class="input-group-addon input-group-text"><?= h($rootUrl) ?></span>
             <input class="form-control" id="log404-excludepathrx-test-path" type="text" placeholder="<?= t('Path') ?>" v-model="path" v-bind:readonly="busy" v-on:keyup.enter.prevent="test()" />
             <span class="input-group-btn">
                 <button class="btn btn-primary" v-on:click.prevent="test()" v-bind:disabled="busy">
