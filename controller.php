@@ -10,7 +10,6 @@ use Concrete\Core\Http\ServerInterface;
 use Concrete\Core\Package\Package;
 use Concrete\Core\Routing\RouterInterface;
 use Concrete\Core\User\User;
-use Concrete\Package\UrlAliases\Entity\UrlAliasRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 defined('C5_EXECUTE') or die('Access Denied.');
@@ -40,7 +39,7 @@ class Controller extends Package
      *
      * @see \Concrete\Core\Package\Package::getPackageName()
      */
-    public function getPackageName()
+    public function getPackageName(): string
     {
         return t('URL Aliases');
     }
@@ -50,7 +49,7 @@ class Controller extends Package
      *
      * @see \Concrete\Core\Package\Package::getPackageDescription()
      */
-    public function getPackageDescription()
+    public function getPackageDescription(): string
     {
         return t('Create alias URLs for pages and files.');
     }
@@ -62,8 +61,10 @@ class Controller extends Package
      */
     public function install()
     {
-        parent::install();
+        $result = parent::install();
         $this->installContentFile('config/install.xml');
+
+        return $result;
     }
 
     /**
@@ -71,16 +72,19 @@ class Controller extends Package
      *
      * @see \Concrete\Core\Package\Package::upgrade()
      */
-    public function upgrade()
+    public function upgrade(): void
     {
         parent::upgrade();
-        //$this->installContentFile('config/install.xml');
+        $this->installContentFile('config/install.xml');
     }
 
     public function on_start(): void
     {
-        $this->app->bind(Entity\UrlAliasRepository::class, static function (Application $app): UrlAliasRepository {
+        $this->app->bind(Entity\UrlAliasRepository::class, static function (Application $app): Entity\UrlAliasRepository {
             return $app->make(EntityManagerInterface::class)->getRepository(Entity\UrlAlias::class);
+        });
+        $this->app->bind(Entity\NotFoundLogEntryRepository::class, static function (Application $app): Entity\NotFoundLogEntryRepository {
+            return $app->make(EntityManagerInterface::class)->getRepository(Entity\NotFoundLogEntry::class);
         });
         if ($this->app->isRunThroughCommandLineInterface()) {
             return;
@@ -93,7 +97,7 @@ class Controller extends Package
             $this->app->make(ServerInterface::class)->addMiddleware(new Middleware(), $priority);
         } else {
             $this->app->resolving(ServerInterface::class, static function (ServerInterface $server) use ($priority): void {
-                $server->addMiddleware(new Middleware(), PHP_INT_MAX);
+                $server->addMiddleware(new Middleware(), $priority);
             });
         }
         if ($this->app->make(User::class)->isRegistered()) {
@@ -104,7 +108,7 @@ class Controller extends Package
     private function registerRoutes(): void
     {
         $router = $this->app->make(RouterInterface::class);
-        $router->get('/dashboard/system/url-aliases/edit-url-alias', Controller\Dialog\EditUrlAlias::class . '::view');
-        $router->get('/dashboard/system/url-aliases/edit-localized-target', Controller\Dialog\EditLocalizedTarget::class . '::view');
+        $router->get('/dashboard/system/url-aliases/aliases/edit-url-alias', Controller\Dialog\EditUrlAlias::class . '::view');
+        $router->get('/dashboard/system/url-aliases/aliases/edit-localized-target', Controller\Dialog\EditLocalizedTarget::class . '::view');
     }
 }

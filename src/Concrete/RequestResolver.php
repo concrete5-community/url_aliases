@@ -134,27 +134,26 @@ final class RequestResolver
     {
         $charset = APP_CHARSET;
         $head = <<<EOT
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset={$charset}">
-<script>
-if (window.parent && window.parent !== window) {
-    const from = window.parent.document.documentElement;
-    const to = window.document.documentElement;
-    if (from.lang) {
-        to.lang = from.lang;
-    }
-    const theme = from.getAttribute('data-bs-theme');
-    if (theme) {
-        to.setAttribute('data-bs-theme', theme);
-    }
-    from.querySelectorAll('style, link[rel="stylesheet"]').forEach((el) => {
-        document.write(el.outerHTML);
-    });
-}
-</script>
-</head>
-EOT
-        ;
+        <head>
+        <meta http-equiv="Content-Type" content="text/html; charset={$charset}">
+        <script>
+        if (window.parent && window.parent !== window) {
+            const from = window.parent.document.documentElement;
+            const to = window.document.documentElement;
+            if (from.lang) {
+                to.lang = from.lang;
+            }
+            const theme = from.getAttribute('data-bs-theme');
+            if (theme) {
+                to.setAttribute('data-bs-theme', theme);
+            }
+            from.querySelectorAll('style, link[rel="stylesheet"]').forEach((el) => {
+                document.write(el.outerHTML);
+            });
+        }
+        </script>
+        </head>
+        EOT;
         $html = '<!DOCTYPE html><html>' . $head . '<body style="margin: 0; padding: 0"><div class="ccm-ui" style="margin: 0">';
         $html .= '<div class="alert ' . ($error ? 'alert-danger' : 'alert-success') . '" style="white-space: pre-wrap">' . h($message) . '</div>';
         $html .= '</div></body></html>';
@@ -206,7 +205,7 @@ EOT
                 }
 
                 return true;
-            }
+            },
         );
 
         return array_shift($localizedTargets);
@@ -216,17 +215,16 @@ EOT
     {
         $territory = $script = $language = '';
         $rx = <<<'EOT'
-/^
-# language
-(?<language>[a-zA-Z]{2,3})
-# Next, optionally, the territory or the script
-(?:-(?<seg1>[A-Za-z]{2,4}|\d{3}))?
-# Next, optionally, the territory or the script
-(?:-(?<seg2>[A-Za-z]{2,4}|\d{3}))?
-(?:\W|$)
-/x
-EOT
-        ;
+        /^
+        # language
+        (?<language>[a-zA-Z]{2,3})
+        # Next, optionally, the territory or the script
+        (?:-(?<seg1>[A-Za-z]{2,4}|\d{3}))?
+        # Next, optionally, the territory or the script
+        (?:-(?<seg2>[A-Za-z]{2,4}|\d{3}))?
+        (?:\W|$)
+        /x
+        EOT;
         $match = null;
         if (preg_match($rx, str_replace('_', '-', $locale), $match)) {
             $language = strtolower($match['language']);
@@ -266,16 +264,15 @@ EOT
         $charset = APP_CHARSET;
         $hTargetUrl = htmlspecialchars($targetUrl, ENT_QUOTES, APP_CHARSET);
         $html = <<<EOT
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="{$charset}" />
-</head>
-<body onload="document.forms[0].submit()">
-    <form method="POST" action="{$hTargetUrl}">
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="{$charset}" />
+        </head>
+        <body onload="document.forms[0].submit()">
+            <form method="POST" action="{$hTargetUrl}">
 
-EOT
-        ;
+        EOT;
         $renderFields = null;
         $renderFields = static function (array $data, string $namePrefix = '') use (&$renderFields, &$html): void {
             foreach ($data as $key => $value) {
@@ -287,21 +284,19 @@ EOT
                     $escapedName = htmlspecialchars($name, ENT_QUOTES, APP_CHARSET);
                     $escapedValue = htmlspecialchars((string) $value, ENT_QUOTES, APP_CHARSET);
                     $html .= <<<EOT
-        <input type="hidden" name="{$escapedName}" value="{$escapedValue}" />
+                            <input type="hidden" name="{$escapedName}" value="{$escapedValue}" />
 
-EOT
-                    ;
+                    EOT;
                 }
             }
         };
         $renderFields($request->request->all());
         $html .= <<<'EOT'
-    </form>
-</body>
-</html>
+            </form>
+        </body>
+        </html>
 
-EOT
-        ;
+        EOT;
 
         return new Response($html, Response::HTTP_OK, self::COMMON_RESPONSE_HEADERS);
     }

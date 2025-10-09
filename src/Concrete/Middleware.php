@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Concrete\Package\UrlAliases;
 
+use Concrete\Core\Config\Repository\Repository;
 use Concrete\Core\Http\Middleware\DelegateInterface;
 use Concrete\Core\Http\Middleware\MiddlewareInterface;
 use Psr\Log\LoggerInterface;
@@ -25,7 +26,12 @@ final class Middleware implements MiddlewareInterface
         $response = $frame->next($request);
         try {
             if ($this->isNotFoundResponse($response)) {
-                $response = app(RequestResolver::class)->resolve($request, true) ?? $response;
+                $newResponse = app(RequestResolver::class)->resolve($request, true);
+                if ($newResponse === null) {
+                    $this->logNotFound($request);
+                } else {
+                    $response = $newResponse;
+                }
             }
         } catch (Throwable $x) {
             try {
@@ -43,5 +49,14 @@ final class Middleware implements MiddlewareInterface
     private function isNotFoundResponse($response): bool
     {
         return $response instanceof Response && $response->getStatusCode() === Response::HTTP_NOT_FOUND;
+    }
+
+    private function logNotFound(Request $request): void
+    {
+        if (app(Repository::class)->get('url_aliases::options.log404.enabled')) {
+            $service = app(NotFoundLogService::class);
+            $service->deleteOld();
+            $service->log($request);
+        }
     }
 }

@@ -61,7 +61,7 @@ final class TargetResolver
 
         return Result::success(
             $this->finalizeUrl((string) $this->pageUrlResolver->resolve([$page]), $target, $request),
-            t('Page: %s', $page->isGeneratedCollection() ? t($page->getCollectionName()) : $page->getCollectionName())
+            t('Page: %s', $page->isGeneratedCollection() ? t($page->getCollectionName()) : $page->getCollectionName()),
         );
     }
 
@@ -79,7 +79,7 @@ final class TargetResolver
 
         return Result::success(
             $this->finalizeUrl((string) $fileVersion->getDownloadURL(), $target, $request),
-            t('File: %s', $fileVersion->getFileName())
+            t('File: %s', $fileVersion->getFileName()),
         );
     }
 
@@ -87,7 +87,7 @@ final class TargetResolver
     {
         return Result::success(
             $this->finalizeUrl($target->getTargetValue(), $target, $request),
-            t('External URL')
+            t('External URL'),
         );
     }
 

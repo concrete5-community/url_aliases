@@ -4,6 +4,17 @@
     <singlepages>
         <page name="URL Aliases" description="" pagetype="" path="/dashboard/system/url-aliases" package="url_aliases">
         </page>
+        <page name="Aliases" description="" pagetype="" path="/dashboard/system/url-aliases/aliases" package="url_aliases">
+        </page>
+        <page name="Broken Links" description="" pagetype="" path="/dashboard/system/url-aliases/broken-links" package="url_aliases">
+            <attributes>
+                <attributekey handle="meta_keywords">
+                    <value>404, url, found, broken</value>
+                </attributekey>
+            </attributes>
+        </page>
+        <page name="Options" description="" pagetype="" path="/dashboard/system/url-aliases/options" package="url_aliases">
+        </page>
     </singlepages>
 
 </concrete5-cif>
