@@ -302,13 +302,13 @@ const eventHooks = (function() {
     };
 
     return {
-        saveUrlAlias: async (e) => {
+        saveUrlAlias: (e) => {
             invoke('saveUrlAlias', e);
         },
-        saveLocalizedTarget: async (e) => {
+        saveLocalizedTarget: (e) => {
             invoke('saveLocalizedTarget', e);
         },
-        deleteLocalizedTarget: async (e) => {
+        deleteLocalizedTarget: (e) => {
             invoke('deleteLocalizedTarget', e, () => {
                 e.detail.done();
             });
