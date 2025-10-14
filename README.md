@@ -33,6 +33,7 @@ This is especially useful for creating short, memorable links for marketing camp
 - Flexible and Customizable: Easily manage, edit, and delete all your URL aliases from a single, intuitive interface within the ConcreteCMS dashboard.
 - Redirect by Browser Language: You can define an alias that points to page A for English, to page B for German, and to page C for any other language.
 - Log of requests that result in 404 - Not Found errors, even after the defined URL Aliases have been checked.
+- Create URL Aliases from Additional Page Paths: keep all your aliases in just one central place (URL Aliases).
 
 ### Why You'll Love It
 

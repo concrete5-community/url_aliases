@@ -257,6 +257,9 @@ ob_end_clean();
                     <?= t('Auto-refresh') ?>
                     <span v-bind:style="{visibility: autorefreshing ? 'visible' : 'hidden'}" class="ua-loading-icon"></span>
                 </button>
+                <buttton class="btn btn-secondary btn-default" v-on:click.prevent="showFromPageAliasesDialog()">
+                    <?= t('From Page Paths') ?>
+                </buttton>
             </div>
             <div class="float-end pull-right">
                 <button class="btn btn-primary" v-on:click.prevent="editUrlAlias()"><?= t('Add') ?></button>
@@ -312,6 +315,9 @@ const eventHooks = (function() {
             invoke('deleteLocalizedTarget', e, () => {
                 e.detail.done();
             });
+        },
+        convertPagePathToUrlAlias: (e) => {
+            invoke('convertPagePathToUrlAlias', e);
         },
     };
 })();
@@ -443,6 +449,7 @@ function ready() {
             window.addEventListener('ccm.url_aliases.saveUrlAlias', eventHooks.saveUrlAlias);
             window.addEventListener('ccm.url_aliases.saveLocalizedTarget', eventHooks.saveLocalizedTarget);
             window.addEventListener('ccm.url_aliases.deleteLocalizedTarget', eventHooks.deleteLocalizedTarget);
+            window.addEventListener('ccm.url_aliases.convertPagePathToUrlAlias', eventHooks.convertPagePathToUrlAlias);
             this.toggleSort('createdOn');
             if (this.autorefreshEnabled) {
                 clearTimeout(autorefreshTimer);
@@ -450,6 +457,7 @@ function ready() {
             }
         },
         destroyed() {
+            window.removeEventListener('ccm.url_aliases.convertPagePathToUrlAlias', eventHooks.convertPagePathToUrlAlias);
             window.removeEventListener('ccm.url_aliases.deleteLocalizedTarget', eventHooks.deleteLocalizedTarget);
             window.removeEventListener('ccm.url_aliases.saveLocalizedTarget', eventHooks.saveLocalizedTarget);
             window.removeEventListener('ccm.url_aliases.saveUrlAlias', eventHooks.saveUrlAlias);
@@ -765,6 +773,25 @@ function ready() {
             },
             hideTestDialog() {
                 jQuery.fn.dialog.closeTop();
+            },
+            showFromPageAliasesDialog() {
+                jQuery.fn.dialog.open({
+                    width: Math.min(Math.max(window.innerWidth - 50, 300), 800),
+                    height: 'auto',
+                    modal: true,
+                    title: <?= json_encode(t('From Page Paths')) ?>,
+                    href: <?= json_encode((string) $view->action('from-page-paths')) ?>,
+                });
+            },
+            async convertPagePathToUrlAlias(pagePathID) {
+                const urlAlias = await this.ajax(
+                    <?= json_encode($view->action('convertPagePathToUrlAlias')) ?>,
+                    <?= json_encode($token->generate('ua-convertPagePathToUrlAlias')) ?>,
+                    {
+                        pagePathID,
+                    },
+                );
+                this.addOrRefresh(urlAlias, true);
             },
             async ajax(url, token, bodyParams) {
                 const request = {
