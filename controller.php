@@ -110,5 +110,6 @@ class Controller extends Package
         $router = $this->app->make(RouterInterface::class);
         $router->get('/dashboard/system/url-aliases/aliases/edit-url-alias', Controller\Dialog\EditUrlAlias::class . '::view');
         $router->get('/dashboard/system/url-aliases/aliases/edit-localized-target', Controller\Dialog\EditLocalizedTarget::class . '::view');
+        $router->get('/dashboard/system/url-aliases/aliases/from-page-paths', Controller\Dialog\FromPagePaths::class . '::view');
     }
 }

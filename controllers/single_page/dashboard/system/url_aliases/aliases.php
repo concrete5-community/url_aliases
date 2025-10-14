@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Concrete\Package\UrlAliases\Controller\SinglePage\Dashboard\System\UrlAliases;
 
+use Concrete\Core\Entity\Page\PagePath;
 use Concrete\Core\Error\UserMessageException;
 use Concrete\Core\File\File;
 use Concrete\Core\Http\ResponseFactoryInterface;
@@ -237,6 +238,51 @@ class Aliases extends DashboardPageController
         $urlAlias->getLocalizedTargets()->removeElement($localizedTarget);
         $em->remove($localizedTarget);
         $em->flush();
+
+        return $this->app->make(ResponseFactoryInterface::class)->json(
+            $this->serializeUrlAlias($urlAlias, $this->buildSerializationServices()),
+        );
+    }
+
+    public function convertPagePathToUrlAlias(): JsonResponse
+    {
+        $token = $this->app->make(Token::class);
+        if (!$token->validate('ua-convertPagePathToUrlAlias')) {
+            throw new UserMessageException($token->getErrorMessage());
+        }
+        $em = $this->app->make(EntityManagerInterface::class);
+        $pagePathID = $this->request->request->getInt('pagePathID');
+        $pagePath = $pagePathID === 0 ? null : $em->find(PagePath::class, $pagePathID);
+        if ($pagePath === null) {
+            throw new UserMessageException(t('Unable to find the page path with ID %s', $pagePathID));
+        }
+        if ($pagePath->isPagePathCanonical()) {
+            throw new UserMessageException(t('Unable to convert the requested additional page path because it is the canonical one'));
+        }
+        $canonicalPagePath = $em->getRepository(PagePath::class)->findOneBy([
+            'cID' => $pagePath->getCollectionID(),
+            'ppIsCanonical' => 1,
+        ]);
+        if ($canonicalPagePath === null) {
+            throw new UserMessageException(t('Unable to convert the requested additional page path because the canonical page path could not be found'));
+        }
+        $urlAlias = $em->transactional(function (EntityManagerInterface $em) use ($pagePath): UrlAlias {
+            $urlAlias = new UrlAlias();
+            $urlAlias
+                ->setPath($this->normalizePath($pagePath->getPagePath()))
+                ->setTargetType(Target::TARGETTYPE_PAGE)
+                ->setTargetValue((string) $pagePath->getCollectionID())
+                ->setEnabled(true)
+                ->setAcceptAdditionalQuerystringParams(true)
+                ->setForwardQuerystringParams(false)
+                ->setForwardPost(false)
+            ;
+            $this->checkUrlAliasClashes($urlAlias);
+            $em->persist($urlAlias);
+            $em->remove($pagePath);
+
+            return $urlAlias;
+        });
 
         return $this->app->make(ResponseFactoryInterface::class)->json(
             $this->serializeUrlAlias($urlAlias, $this->buildSerializationServices()),
