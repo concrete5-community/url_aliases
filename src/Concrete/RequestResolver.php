@@ -271,7 +271,6 @@ final class RequestResolver
         </head>
         <body onload="document.forms[0].submit()">
             <form method="POST" action="{$hTargetUrl}">
-
         EOT;
         $renderFields = null;
         $renderFields = static function (array $data, string $namePrefix = '') use (&$renderFields, &$html): void {
@@ -284,8 +283,7 @@ final class RequestResolver
                     $escapedName = htmlspecialchars($name, ENT_QUOTES, APP_CHARSET);
                     $escapedValue = htmlspecialchars((string) $value, ENT_QUOTES, APP_CHARSET);
                     $html .= <<<EOT
-                            <input type="hidden" name="{$escapedName}" value="{$escapedValue}" />
-
+                    <input type="hidden" name="{$escapedName}" value="{$escapedValue}" />
                     EOT;
                 }
             }
@@ -295,7 +293,6 @@ final class RequestResolver
             </form>
         </body>
         </html>
-
         EOT;
 
         return new Response($html, Response::HTTP_OK, self::COMMON_RESPONSE_HEADERS);
