@@ -18,7 +18,7 @@ class Controller extends Package
 {
     protected $pkgHandle = 'url_aliases';
 
-    protected $pkgVersion = '1.2.0';
+    protected $pkgVersion = '1.2.1';
 
     /**
      * {@inheritdoc}
