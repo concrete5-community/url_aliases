@@ -209,6 +209,8 @@ class NotFoundLogEntry implements JsonSerializable
     {
         $this->lastHit = new DateTime();
         $this->hitCount++;
+
+        return $this;
     }
 
     public static function normalizeRequestPath(Request $request): string
